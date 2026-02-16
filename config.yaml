@@ -1,0 +1,18 @@
+llm:
+  endpoint: "http://localhost:1234/v1"
+  model: "local-model"
+  max_tokens: 4096
+  temperature: 0.3
+
+sources:
+  cisa_kev:
+    url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+  msrc:
+    url: "https://api.msrc.microsoft.com/cvrf/v3.0/updates"
+  aws_security:
+    url: "https://aws.amazon.com/security/security-bulletins/"
+  hackernews_threatintel:
+    url: "https://feeds.feedburner.com/TheHackersNews"
+
+reports_dir: "./reports"
+default_hours: 48
