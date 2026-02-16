@@ -47,7 +47,7 @@ def fetch_cisa_kev(url: str, cutoff: datetime) -> list[ThreatEntry]:
                     f"Required action: {vuln.get('requiredAction', 'N/A')}. "
                     f"Due date: {vuln.get('dueDate', 'N/A')}."
                 ),
-                url=f"https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+                url=f"https://nvd.nist.gov/vuln/detail/{vuln.get('cveID', '')}",
             )
         )
 

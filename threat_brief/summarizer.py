@@ -24,6 +24,9 @@ SYSTEM_PROMPT = (
     "(Items relevant to our stack but not immediately actionable)\n\n"
     "## Awareness\n"
     "(General threat landscape items worth tracking)\n\n"
+    "For each item you mention, include a Markdown link to its source URL, e.g. "
+    "[CVE-2024-1234](https://nvd.nist.gov/vuln/detail/CVE-2024-1234). "
+    "This ensures the briefing has clickable references.\n\n"
     "If a section has no items, write 'None at this time.'"
 )
 

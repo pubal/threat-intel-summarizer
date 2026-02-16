@@ -4,11 +4,15 @@ import logging
 import os
 import subprocess
 import sys
+import webbrowser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import click
+import markdown
 import yaml
+
+from threat_brief.html_template import HTML_TEMPLATE
 
 from threat_brief.models import ThreatEntry
 from threat_brief.sources import (
@@ -65,11 +69,11 @@ def _fetch_all(config: dict, cutoff: datetime) -> list[ThreatEntry]:
     return all_entries
 
 
-def _write_report(content: str, reports_dir: str) -> Path:
+def _write_report(content: str, reports_dir: str, ext: str = ".html") -> Path:
     """Write report to a dated file."""
     path = Path(reports_dir)
     path.mkdir(parents=True, exist_ok=True)
-    filename = f"threat-brief-{datetime.now().strftime('%Y-%m-%d_%H%M')}.md"
+    filename = f"threat-brief-{datetime.now().strftime('%Y-%m-%d_%H%M')}{ext}"
     filepath = path / filename
     filepath.write_text(content, encoding="utf-8")
     return filepath
@@ -114,7 +118,14 @@ def _dry_run_output(entries: list[ThreatEntry]) -> str:
     help="Fetch and display raw items without LLM summarization",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
-def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool) -> None:
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["html", "md"], case_sensitive=False),
+    default="html",
+    help="Output format (default: html)",
+)
+def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str) -> None:
     """threat-brief — Daily threat intelligence briefing generator."""
     _setup_logging(verbose)
 
@@ -149,14 +160,33 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool) -> N
         )
         output = header + summary
 
-    # Print to stdout
+    # Convert to HTML if requested
+    if output_format == "html":
+        body_html = markdown.markdown(output, extensions=["extra", "sane_lists"])
+        generated_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        final_output = HTML_TEMPLATE.format(
+            generated=generated_ts,
+            window=f"Last {lookback} hours",
+            item_count=len(entries),
+            body=body_html,
+        )
+        ext = ".html"
+    else:
+        final_output = output
+        ext = ".md"
+
+    # Print to stdout (Markdown version for readability in terminal)
     click.echo("\n" + "=" * 60)
     click.echo(output)
 
     # Write to file
     reports_dir = config.get("reports_dir", "./reports")
-    filepath = _write_report(output, reports_dir)
+    filepath = _write_report(final_output, reports_dir, ext=ext)
     click.echo(f"\nReport saved to: {filepath}")
+
+    # Auto-open HTML in browser
+    if output_format == "html":
+        webbrowser.open(filepath.resolve().as_uri())
 
     # macOS notification
     critical_count = sum(1 for e in entries if e.severity == "Critical")
