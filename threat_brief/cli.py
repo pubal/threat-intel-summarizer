@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -156,6 +157,29 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool) -> N
     reports_dir = config.get("reports_dir", "./reports")
     filepath = _write_report(output, reports_dir)
     click.echo(f"\nReport saved to: {filepath}")
+
+    # macOS notification
+    critical_count = sum(1 for e in entries if e.severity == "Critical")
+    _notify(
+        "Threat Brief Ready",
+        f"{len(entries)} items analyzed, {critical_count} critical. Report: {filepath.name}",
+    )
+
+
+def _notify(title: str, message: str) -> None:
+    """Send a macOS notification."""
+    try:
+        subprocess.run(
+            [
+                "osascript",
+                "-e",
+                f'display notification "{message}" with title "{title}"',
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except Exception:
+        logger.debug("macOS notification failed", exc_info=True)
 
 
 if __name__ == "__main__":
