@@ -49,6 +49,54 @@ Reports are written to both stdout and a dated Markdown file in `./reports/`. Th
 
 If the LLM endpoint is unavailable, a fallback report with categorized raw items is generated instead.
 
+## Scheduled Runs (macOS)
+
+Create a launchd plist at `~/Library/LaunchAgents/com.threat-brief.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.threat-brief</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/path/to/project/.venv/bin/threat-brief</string>
+        <string>--config</string>
+        <string>/path/to/project/config.yaml</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/path/to/project</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/path/to/project/reports/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/path/to/project/reports/launchd-stderr.log</string>
+</dict>
+</plist>
+```
+
+Replace `/path/to/project` with your actual project directory, then load it:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.threat-brief.plist
+
+# Manual trigger
+launchctl start com.threat-brief
+
+# Unload
+launchctl unload ~/Library/LaunchAgents/com.threat-brief.plist
+```
+
+A macOS notification banner will appear when each run completes, showing the item count and number of critical findings.
+
 ## Project Structure
 
 ```
