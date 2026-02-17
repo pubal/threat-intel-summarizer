@@ -37,6 +37,7 @@ def summarize(
     model: str,
     max_tokens: int = 4096,
     temperature: float = 0.3,
+    infocon_level: str = "",
 ) -> str:
     """Send aggregated threat entries to a local LLM for summarization."""
     if not entries:
@@ -53,7 +54,15 @@ def summarize(
         for i, e in enumerate(entries)
     )
 
+    infocon_context = ""
+    if infocon_level and infocon_level != "green":
+        infocon_context = (
+            f"Note: The current SANS ISC InfoCon level is {infocon_level.upper()} "
+            f"(elevated). Include this in the TL;DR executive summary.\n\n"
+        )
+
     user_prompt = (
+        f"{infocon_context}"
         f"Here are {len(entries)} threat intelligence items from the last reporting window:\n\n"
         f"{items_text}\n\n"
         "Please produce the briefing now."

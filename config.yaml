@@ -1,3 +1,5 @@
+user_agent: "threat-brief/1.0 (contact: your-email@example.com)"
+
 llm:
   endpoint: "http://localhost:1234/v1"
   model: "local-model"
@@ -13,6 +15,9 @@ sources:
     url: "https://aws.amazon.com/security/security-bulletins/"
   hackernews_threatintel:
     url: "https://feeds.feedburner.com/TheHackersNews"
+  isc_sans:
+    url: "https://isc.sans.edu/rssfeed_full.xml"
+    infocon_url: "https://isc.sans.edu/infocon.txt"
 
 reports_dir: "./reports"
 default_hours: 48

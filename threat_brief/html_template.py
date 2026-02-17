@@ -153,6 +153,31 @@ HTML_TEMPLATE = """\
     margin: 1.5rem 0;
   }}
 
+  .infocon-badge {{
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+  }}
+  .infocon-green {{
+    background: #238636;
+    color: #e6edf3;
+  }}
+  .infocon-yellow {{
+    background: #9e6a03;
+    color: #e6edf3;
+  }}
+  .infocon-orange {{
+    background: #bd561d;
+    color: #e6edf3;
+  }}
+  .infocon-red {{
+    background: #da3633;
+    color: #e6edf3;
+  }}
+
   /* Severity badges in content */
   strong:has(+ em) {{
     font-weight: 600;
@@ -200,6 +225,7 @@ HTML_TEMPLATE = """\
     <span>Generated: {generated}</span>
     <span>Window: {window}</span>
     <span>Items: {item_count}</span>
+    {infocon_badge}
   </div>
 </header>
 
