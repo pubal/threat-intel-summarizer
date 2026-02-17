@@ -61,48 +61,48 @@ If the LLM endpoint is unavailable, a fallback report with categorized raw items
 
 ## Scheduled Runs (macOS)
 
-Create a launchd plist at `~/Library/LaunchAgents/com.threat-brief.plist`:
+> **Note:** macOS protects `~/Documents/`, `~/Desktop/`, and `~/Downloads/` with TCC (Transparency, Consent, and Control). Launchd agents cannot access files in these folders without Full Disk Access. If your project lives under a protected folder, create a **separate venv** and place **log files** outside of it to avoid `PermissionError` at runtime.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.threat-brief</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/path/to/project/.venv/bin/threat-brief</string>
-        <string>--config</string>
-        <string>/path/to/project/config.yaml</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>/path/to/project</string>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>6</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
-    <key>StandardOutPath</key>
-    <string>/path/to/project/reports/launchd-stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/path/to/project/reports/launchd-stderr.log</string>
-</dict>
-</plist>
-```
-
-Replace `/path/to/project` with your actual project directory, then load it:
+### 1. Create a venv outside protected folders
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.threat-brief.plist
+mkdir -p ~/.local/share/threat-brief
+python3 -m venv ~/.local/share/threat-brief/venv
+~/.local/share/threat-brief/venv/bin/pip install -e /path/to/project
+```
+
+### 2. Create a wrapper script
+
+Save to `~/.local/bin/threat-brief-runner.sh`:
+
+```bash
+#!/bin/zsh
+cd /path/to/project
+exec ~/.local/share/threat-brief/venv/bin/threat-brief --config config.yaml
+```
+
+```bash
+chmod +x ~/.local/bin/threat-brief-runner.sh
+```
+
+### 3. Install the launchd plist
+
+Copy the included plist to the LaunchAgents directory (do **not** symlink into a protected folder):
+
+```bash
+cp com.threat-brief.plist ~/Library/LaunchAgents/
+```
+
+Edit the plist to replace paths with your own, then load it:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.threat-brief.plist
 
 # Manual trigger
 launchctl start com.threat-brief
 
 # Unload
-launchctl unload ~/Library/LaunchAgents/com.threat-brief.plist
+launchctl bootout gui/$(id -u)/com.threat-brief
 ```
 
 A macOS notification banner will appear when each run completes, showing the item count and number of critical findings.
