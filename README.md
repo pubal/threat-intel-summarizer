@@ -2,12 +2,15 @@
 
 CLI tool that generates daily threat intelligence briefings by aggregating data from multiple sources and summarizing them via a local LLM.
 
+![Example HTML briefing output](threat_brief.png)
+
 ## Sources
 
 - **CISA KEV** — Known Exploited Vulnerabilities catalog (JSON API)
 - **MSRC** — Microsoft Security Response Center (CVRF API v3.0)
 - **AWS Security Bulletins** — parsed from web page
 - **The Hacker News** — threat intel RSS feed
+- **SANS ISC** — Internet Storm Center diary entries (RSS) + InfoCon threat level badge
 
 ## Setup
 
@@ -34,18 +37,25 @@ threat-brief --hours 168
 # Verbose logging
 threat-brief -v
 
+# Markdown output instead of HTML
+threat-brief --format md
+
 # Custom config file
 threat-brief --config /path/to/config.yaml
 ```
 
 ## Output
 
-Reports are written to both stdout and a dated Markdown file in `./reports/`. The LLM-generated briefing includes:
+Reports are saved to `./reports/` as dated files. The default format is **HTML** with a dark-themed report that opens automatically in your browser. Use `--format md` for plain Markdown.
+
+The LLM-generated briefing includes:
 
 - **TL;DR** — executive summary
 - **Critical / Action Required** — items needing immediate response
 - **High Relevance** — relevant but not immediately actionable
 - **Awareness** — general threat landscape items
+
+The HTML report includes a sticky header with generation metadata and a color-coded **InfoCon badge** reflecting the current SANS ISC threat level.
 
 If the LLM endpoint is unavailable, a fallback report with categorized raw items is generated instead.
 
@@ -104,11 +114,13 @@ A macOS notification banner will appear when each run completes, showing the ite
 ├── threat_brief/
 │   ├── cli.py                   # Click CLI entry point
 │   ├── models.py                # ThreatEntry dataclass
+│   ├── html_template.py         # Dark-themed HTML report template
 │   ├── summarizer.py            # LLM integration
 │   └── sources/
 │       ├── cisa_kev.py
 │       ├── msrc.py
 │       ├── aws_bulletins.py
-│       └── hackernews.py
+│       ├── hackernews.py
+│       └── isc.py               # SANS ISC diary + InfoCon
 └── reports/                     # Generated briefings (gitignored)
 ```
