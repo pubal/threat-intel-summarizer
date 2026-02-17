@@ -87,13 +87,14 @@ chmod +x ~/.local/bin/threat-brief-runner.sh
 
 ### 3. Install the launchd plist
 
-Copy the included plist to the LaunchAgents directory (do **not** symlink into a protected folder):
+Copy the example plist, replace `YOUR_USERNAME` with your macOS username, and install it (do **not** symlink into a protected folder):
 
 ```bash
-cp com.threat-brief.plist ~/Library/LaunchAgents/
+cp com.threat-brief.plist.example ~/Library/LaunchAgents/com.threat-brief.plist
+# Edit the file to replace YOUR_USERNAME with your actual username
 ```
 
-Edit the plist to replace paths with your own, then load it:
+Then load it:
 
 ```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.threat-brief.plist
