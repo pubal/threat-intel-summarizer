@@ -21,6 +21,7 @@ from threat_brief.sources import (
     fetch_hackernews,
     fetch_isc,
     fetch_infocon,
+    fetch_krebs,
     fetch_msrc,
 )
 from threat_brief.summarizer import summarize
@@ -53,6 +54,7 @@ def _fetch_all(config: dict, cutoff: datetime) -> list[ThreatEntry]:
         ("MSRC", fetch_msrc, sources.get("msrc", {}).get("url", "")),
         ("AWS Bulletins", fetch_aws_bulletins, sources.get("aws_security", {}).get("url", "")),
         ("Hacker News", fetch_hackernews, sources.get("hackernews_threatintel", {}).get("url", "")),
+        ("Krebs on Security", fetch_krebs, sources.get("krebs", {}).get("url", "")),
     ]
 
     for name, fetcher, url in fetchers:
@@ -172,7 +174,7 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, outp
             f"# Threat Intelligence Briefing\n"
             f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}  \n"
             f"**Window:** Last {lookback} hours  \n"
-            f"**Sources:** CISA KEV, MSRC, AWS Security Bulletins, The Hacker News, SANS ISC  \n"
+            f"**Sources:** CISA KEV, MSRC, AWS Security Bulletins, The Hacker News, Krebs on Security, SANS ISC  \n"
             f"**Items analyzed:** {len(entries)}\n\n---\n\n"
         )
         summary = summarize(

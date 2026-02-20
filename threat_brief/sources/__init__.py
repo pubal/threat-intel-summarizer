@@ -3,5 +3,6 @@ from .msrc import fetch_msrc
 from .aws_bulletins import fetch_aws_bulletins
 from .hackernews import fetch_hackernews
 from .isc import fetch_isc, fetch_infocon
+from .krebs import fetch_krebs
 
-__all__ = ["fetch_cisa_kev", "fetch_msrc", "fetch_aws_bulletins", "fetch_hackernews", "fetch_isc", "fetch_infocon"]
+__all__ = ["fetch_cisa_kev", "fetch_msrc", "fetch_aws_bulletins", "fetch_hackernews", "fetch_isc", "fetch_infocon", "fetch_krebs"]

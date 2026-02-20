@@ -10,6 +10,7 @@ CLI tool that generates daily threat intelligence briefings by aggregating data 
 - **MSRC** — Microsoft Security Response Center (CVRF API v3.0)
 - **AWS Security Bulletins** — parsed from web page
 - **The Hacker News** — threat intel RSS feed
+- **Krebs on Security** — security news RSS feed
 - **SANS ISC** — Internet Storm Center diary entries (RSS) + InfoCon threat level badge
 
 ## Setup
@@ -122,6 +123,7 @@ A macOS notification banner will appear when each run completes, showing the ite
 │       ├── msrc.py
 │       ├── aws_bulletins.py
 │       ├── hackernews.py
+│       ├── krebs.py             # Krebs on Security
 │       └── isc.py               # SANS ISC diary + InfoCon
 └── reports/                     # Generated briefings (gitignored)
 ```
