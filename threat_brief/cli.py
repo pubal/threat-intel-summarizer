@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import html
 import logging
 import os
+import re
 import subprocess
 import sys
 import webbrowser
@@ -123,9 +125,9 @@ def _build_profile_footer(org_profile: dict) -> str:
 
     parts = []
     if company:
-        parts.append(f"Tailored for <strong>{company}</strong>")
+        parts.append(f"Tailored for <strong>{html.escape(company)}</strong>")
     if industries:
-        parts.append(f"Industry: {', '.join(industries)}")
+        parts.append(f"Industry: {html.escape(', '.join(industries))}")
 
     return (
         '<footer class="report-footer">'
@@ -226,7 +228,10 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
 
     # Convert to HTML if requested
     if output_format == "html":
-        body_html = markdown.markdown(output, extensions=["extra", "sane_lists"])
+        # Strip raw HTML tags from markdown input to prevent XSS from
+        # untrusted feed content, while preserving markdown formatting
+        sanitized = re.sub(r"<[^>]+>", "", output)
+        body_html = markdown.markdown(sanitized, extensions=["extra", "sane_lists"])
         generated_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         if infocon_level:
             infocon_badge = (

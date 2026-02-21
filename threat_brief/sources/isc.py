@@ -38,7 +38,7 @@ def fetch_isc(url: str, cutoff: datetime, user_agent: str = "") -> list[ThreatEn
         if dt < cutoff:
             continue
 
-        title = item.get("title", "")
+        title = _clean_html(item.get("title", ""))
         summary = item.get("summary", "")
         link = item.get("link", "")
 
@@ -61,13 +61,20 @@ def fetch_isc(url: str, cutoff: datetime, user_agent: str = "") -> list[ThreatEn
     return entries
 
 
+_VALID_INFOCON_LEVELS = {"green", "yellow", "orange", "red"}
+
+
 def fetch_infocon(url: str, user_agent: str = "") -> str:
     """Fetch the current SANS ISC InfoCon threat level."""
     headers = {"User-Agent": user_agent} if user_agent else {}
     try:
         resp = requests.get(url, headers=headers, timeout=10)
         resp.raise_for_status()
-        return resp.text.strip().lower()
+        level = resp.text.strip().lower()
+        if level not in _VALID_INFOCON_LEVELS:
+            logger.warning("Unexpected InfoCon value %r, defaulting to green", level)
+            return "green"
+        return level
     except Exception:
         logger.exception("Failed to fetch InfoCon level")
         return "green"

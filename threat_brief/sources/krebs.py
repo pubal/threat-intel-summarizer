@@ -36,7 +36,7 @@ def fetch_krebs(url: str, cutoff: datetime) -> list[ThreatEntry]:
         if dt < cutoff:
             continue
 
-        title = item.get("title", "")
+        title = _clean_html(item.get("title", ""))
         summary = item.get("summary", "")
         link = item.get("link", "")
 
