@@ -114,7 +114,27 @@ def _dry_run_output(entries: list[ThreatEntry]) -> str:
     return "\n".join(lines)
 
 
-@click.command()
+def _build_profile_footer(org_profile: dict) -> str:
+    """Build HTML footer showing org profile context, or empty string."""
+    company = org_profile.get("company_name", "")
+    industries = org_profile.get("industry", [])
+    if not company and not industries:
+        return ""
+
+    parts = []
+    if company:
+        parts.append(f"Tailored for <strong>{company}</strong>")
+    if industries:
+        parts.append(f"Industry: {', '.join(industries)}")
+
+    return (
+        '<footer class="report-footer">'
+        f'{"  &middot;  ".join(parts)}'
+        "</footer>"
+    )
+
+
+@click.group(invoke_without_command=True)
 @click.option(
     "--config",
     "config_path",
@@ -141,15 +161,27 @@ def _dry_run_output(entries: list[ThreatEntry]) -> str:
     default="html",
     help="Output format (default: html)",
 )
-def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str) -> None:
+@click.pass_context
+def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str) -> None:
     """threat-brief — Daily threat intelligence briefing generator."""
+    # If a subcommand was invoked, store config_path for it and return
+    ctx.ensure_object(dict)
+    ctx.obj["config_path"] = config_path
+
+    if ctx.invoked_subcommand is not None:
+        return
+
     _setup_logging(verbose)
 
     config = _load_config(config_path)
+    org_profile = config.get("org_profile", {})
+    company_name = org_profile.get("company_name", "")
     lookback = hours if hours is not None else config.get("default_hours", 48)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback)
 
     click.echo(f"Threat Brief — lookback: {lookback}h (cutoff: {cutoff.strftime('%Y-%m-%d %H:%M UTC')})")
+    if company_name:
+        click.echo(f"Organization: {company_name}")
     click.echo("Fetching sources...")
 
     entries = _fetch_all(config, cutoff)
@@ -170,11 +202,15 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, outp
     else:
         click.echo("\nGenerating LLM summary...")
         llm_cfg = config.get("llm", {})
+
+        # Build source list dynamically from configured sources
+        source_names = "CISA KEV, MSRC, AWS Security Bulletins, The Hacker News, Krebs on Security, SANS ISC"
+
         header = (
             f"# Threat Intelligence Briefing\n"
             f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}  \n"
             f"**Window:** Last {lookback} hours  \n"
-            f"**Sources:** CISA KEV, MSRC, AWS Security Bulletins, The Hacker News, Krebs on Security, SANS ISC  \n"
+            f"**Sources:** {source_names}  \n"
             f"**Items analyzed:** {len(entries)}\n\n---\n\n"
         )
         summary = summarize(
@@ -184,6 +220,7 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, outp
             max_tokens=llm_cfg.get("max_tokens", 4096),
             temperature=llm_cfg.get("temperature", 0.3),
             infocon_level=infocon_level,
+            org_profile=org_profile,
         )
         output = header + summary
 
@@ -198,12 +235,14 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, outp
             )
         else:
             infocon_badge = ""
+        profile_footer = _build_profile_footer(org_profile)
         final_output = HTML_TEMPLATE.format(
             generated=generated_ts,
             window=f"Last {lookback} hours",
             item_count=len(entries),
             body=body_html,
             infocon_badge=infocon_badge,
+            profile_footer=profile_footer,
         )
         ext = ".html"
     else:
@@ -229,6 +268,98 @@ def main(config_path: str, hours: int | None, dry_run: bool, verbose: bool, outp
         "Threat Brief Ready",
         f"{len(entries)} items analyzed, {critical_count} critical. Report: {filepath.name}",
     )
+
+
+@main.command()
+@click.pass_context
+def init(ctx: click.Context) -> None:
+    """Interactive setup wizard for org_profile configuration."""
+    config_path = ctx.obj["config_path"]
+
+    click.echo("threat-brief — Organization Profile Setup")
+    click.echo("Press Enter to skip any question.\n")
+
+    # Company name
+    company_name = click.prompt(
+        "Company name", default="", show_default=False
+    ).strip()
+
+    # Industry
+    industry_input = click.prompt(
+        "Industry (comma-separated, e.g. Financial Services, FinTech, Healthcare)",
+        default="", show_default=False,
+    ).strip()
+    industries = [i.strip() for i in industry_input.split(",") if i.strip()] if industry_input else []
+
+    # Tech stack categories
+    click.echo("\nTech Stack (press Enter to skip any category):")
+
+    os_input = click.prompt(
+        "  Operating systems (e.g. Windows 11, macOS, Ubuntu)",
+        default="", show_default=False,
+    ).strip()
+    operating_systems = [i.strip() for i in os_input.split(",") if i.strip()] if os_input else []
+
+    infra_input = click.prompt(
+        "  Infrastructure (e.g. Active Directory, AWS, Azure)",
+        default="", show_default=False,
+    ).strip()
+    infrastructure = [i.strip() for i in infra_input.split(",") if i.strip()] if infra_input else []
+
+    apps_input = click.prompt(
+        "  Applications (e.g. Microsoft 365, SolarWinds, Ivanti)",
+        default="", show_default=False,
+    ).strip()
+    applications = [i.strip() for i in apps_input.split(",") if i.strip()] if apps_input else []
+
+    langs_input = click.prompt(
+        "  Languages/frameworks (e.g. Python, .NET, Node.js)",
+        default="", show_default=False,
+    ).strip()
+    languages = [i.strip() for i in langs_input.split(",") if i.strip()] if langs_input else []
+
+    sec_input = click.prompt(
+        "  Security tools (e.g. CrowdStrike, Splunk, Tenable)",
+        default="", show_default=False,
+    ).strip()
+    security_tools = [i.strip() for i in sec_input.split(",") if i.strip()] if sec_input else []
+
+    # Build org_profile with only non-empty fields
+    org_profile: dict = {}
+    if company_name:
+        org_profile["company_name"] = company_name
+    if industries:
+        org_profile["industry"] = industries
+
+    tech_stack: dict = {}
+    if operating_systems:
+        tech_stack["operating_systems"] = operating_systems
+    if infrastructure:
+        tech_stack["infrastructure"] = infrastructure
+    if applications:
+        tech_stack["applications"] = applications
+    if languages:
+        tech_stack["languages_and_frameworks"] = languages
+    if security_tools:
+        tech_stack["security_tools"] = security_tools
+    if tech_stack:
+        org_profile["tech_stack"] = tech_stack
+
+    if not org_profile:
+        click.echo("\nNo profile data provided. Config unchanged.")
+        return
+
+    # Read existing config, merge, write back
+    with open(config_path) as f:
+        config = yaml.safe_load(f) or {}
+
+    config["org_profile"] = org_profile
+
+    with open(config_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+    click.echo(f"\nOrg profile saved to {config_path}:")
+    click.echo(yaml.dump({"org_profile": org_profile}, default_flow_style=False, sort_keys=False))
 
 
 def _notify(title: str, message: str) -> None:

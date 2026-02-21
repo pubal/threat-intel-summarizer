@@ -9,12 +9,7 @@ from threat_brief.models import ThreatEntry
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = (
-    "You are a threat intelligence analyst at REDACTED, a financial services "
-    "and banking technology company. Summarize these threat intel items, prioritizing "
-    "anything relevant to financial services, banking infrastructure, payment systems, "
-    "cloud services (AWS), and Windows/Active Directory environments. Flag any items "
-    "requiring immediate action.\n\n"
+_FORMAT_INSTRUCTIONS = (
     "Format your response as a Markdown briefing with these exact sections:\n"
     "## TL;DR — Executive Summary\n"
     "(3-5 bullet points for leadership)\n\n"
@@ -31,6 +26,70 @@ SYSTEM_PROMPT = (
 )
 
 
+def build_system_prompt(org_profile: dict) -> str:
+    """Build the LLM system prompt dynamically from org_profile config."""
+    parts: list[str] = []
+
+    # Role line
+    company = org_profile.get("company_name", "")
+    industries = org_profile.get("industry", [])
+    tech_stack = org_profile.get("tech_stack", {})
+
+    if company and industries:
+        industry_str = ", ".join(industries).lower()
+        parts.append(
+            f"You are a threat intelligence analyst at {company}, "
+            f"a {industry_str} company."
+        )
+    elif company:
+        parts.append(f"You are a threat intelligence analyst at {company}.")
+    else:
+        parts.append("You are a threat intelligence analyst.")
+
+    # Flatten tech stack
+    all_tech: list[str] = []
+    for category in tech_stack.values():
+        if isinstance(category, list):
+            all_tech.extend(category)
+
+    # Prioritization instructions
+    if industries and all_tech:
+        industry_str = ", ".join(industries).lower()
+        parts.append(
+            f"Summarize these threat intel items, prioritizing anything relevant to "
+            f"the {industry_str} sector and the following technology stack: "
+            f"{', '.join(all_tech)}."
+        )
+    elif industries:
+        industry_str = ", ".join(industries).lower()
+        parts.append(
+            f"Summarize these threat intel items, prioritizing threats relevant to "
+            f"the {industry_str} sector."
+        )
+    elif all_tech:
+        parts.append(
+            f"Summarize these threat intel items, prioritizing threats affecting "
+            f"{', '.join(all_tech)}."
+        )
+    else:
+        parts.append(
+            "Summarize these threat intel items, prioritizing by severity and "
+            "breadth of impact."
+        )
+
+    # Tech stack specific instructions
+    if all_tech:
+        parts.append(
+            "Flag when a CVE or advisory specifically names a product from "
+            "this technology stack. Deprioritize items that are irrelevant to "
+            "the configured technologies."
+        )
+
+    parts.append("Flag any items requiring immediate action.")
+
+    return " ".join(parts) + "\n\n" + _FORMAT_INSTRUCTIONS
+
+
 def summarize(
     entries: list[ThreatEntry],
     endpoint: str,
@@ -38,10 +97,13 @@ def summarize(
     max_tokens: int = 4096,
     temperature: float = 0.3,
     infocon_level: str = "",
+    org_profile: dict | None = None,
 ) -> str:
     """Send aggregated threat entries to a local LLM for summarization."""
     if not entries:
         return _empty_report()
+
+    system_prompt = build_system_prompt(org_profile or {})
 
     items_text = "\n\n".join(
         f"### {i+1}. {e.title}\n"
@@ -76,7 +138,7 @@ def summarize(
             json={
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 "max_tokens": max_tokens,

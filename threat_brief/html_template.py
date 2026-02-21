@@ -199,6 +199,15 @@ HTML_TEMPLATE = """\
     }}
   }}
 
+  .report-footer {{
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }}
+
   /* Print styles */
   @media print {{
     header {{
@@ -232,6 +241,8 @@ HTML_TEMPLATE = """\
 <main>
 {body}
 </main>
+
+{profile_footer}
 
 </body>
 </html>

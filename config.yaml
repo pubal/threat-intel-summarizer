@@ -21,5 +21,34 @@ sources:
     url: "https://isc.sans.edu/rssfeed_full.xml"
     infocon_url: "https://isc.sans.edu/infocon.txt"
 
+org_profile:
+  company_name: "REDACTED"
+  industry:
+    - "Financial Services"
+    - "FinTech"
+    - "Banking"
+  tech_stack:
+    operating_systems:
+      - "Windows 11"
+      - "Windows Server 2022"
+      - "macOS"
+    infrastructure:
+      - "Active Directory"
+      - "Azure AD / Entra ID"
+      - "AWS (EC2, S3, Lambda, RDS)"
+    applications:
+      - "BeyondTrust Remote Support"
+      - "SolarWinds"
+      - "Microsoft 365"
+      - "Ivanti Endpoint Manager"
+    languages_and_frameworks:
+      - "Python"
+      - "JavaScript / Node.js"
+      - ".NET"
+    security_tools:
+      - "CrowdStrike Falcon"
+      - "Tenable.io"
+      - "Splunk"
+
 reports_dir: "./reports"
 default_hours: 48
