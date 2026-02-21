@@ -19,9 +19,10 @@ CLI tool that generates daily threat intelligence briefings by aggregating data 
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
+cp config.yaml.example config.yaml
 ```
 
-Requires a local LLM running an OpenAI-compatible API (e.g., [LM Studio](https://lmstudio.ai/) on `localhost:1234`). Configure the endpoint and model in `config.yaml`.
+Edit `config.yaml` with your LLM endpoint and model. Requires a local LLM running an OpenAI-compatible API (e.g., [LM Studio](https://lmstudio.ai/) on `localhost:1234`).
 
 ## Organization Profile
 
