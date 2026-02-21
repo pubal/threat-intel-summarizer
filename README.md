@@ -6,12 +6,41 @@ CLI tool that generates daily threat intelligence briefings by aggregating data 
 
 ## Sources
 
-- **CISA KEV** — Known Exploited Vulnerabilities catalog (JSON API)
-- **MSRC** — Microsoft Security Response Center (CVRF API v3.0)
-- **AWS Security Bulletins** — parsed from web page
-- **The Hacker News** — threat intel RSS feed
-- **Krebs on Security** — security news RSS feed
-- **SANS ISC** — Internet Storm Center diary entries (RSS) + InfoCon threat level badge
+All sources can be individually enabled or disabled in `config.yaml`. Missing `enabled` flags default to `true` for backward compatibility.
+
+| Source | Description | Type |
+|--------|-------------|------|
+| **CISA KEV** | Known Exploited Vulnerabilities catalog | JSON API |
+| **MSRC** | Microsoft Security Response Center updates | CVRF API v3.0 |
+| **AWS Bulletins** | AWS Security Bulletins | HTML scraping |
+| **The Hacker News** | Cybersecurity news and threat reporting | RSS feed |
+| **Krebs on Security** | Investigative cybersecurity journalism | RSS feed |
+| **SANS ISC** | Internet Storm Center diary + InfoCon threat level | RSS + API |
+
+```yaml
+# config.yaml — toggle individual sources
+sources:
+  cisa_kev:
+    enabled: true
+    url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+  msrc:
+    enabled: false   # disable a source you don't need
+    url: "https://api.msrc.microsoft.com/cvrf/v3.0/updates"
+  # ...
+```
+
+List all sources and their current status:
+
+```bash
+threat-brief --list-sources
+```
+
+The `--list-sources` output shows `[+]` for enabled and `[-]` for disabled sources. Sources can also be toggled interactively via `threat-brief init`.
+
+When a source is disabled:
+- It is skipped during fetching
+- It is excluded from the report header's source list
+- The InfoCon badge is hidden when SANS ISC is disabled
 
 ## Setup
 
@@ -89,7 +118,10 @@ threat-brief --format md
 # Custom config file
 threat-brief --config /path/to/config.yaml
 
-# Interactive org profile setup
+# List all sources and their enabled/disabled status
+threat-brief --list-sources
+
+# Interactive setup (org profile + source toggle)
 threat-brief init
 ```
 
@@ -167,11 +199,20 @@ A macOS notification banner will appear when each run completes, showing the ite
 │   ├── html_template.py         # Dark-themed HTML report template
 │   ├── summarizer.py            # LLM integration
 │   └── sources/
+│       ├── registry.py          # Source registry — add new sources here
 │       ├── cisa_kev.py
 │       ├── msrc.py
 │       ├── aws_bulletins.py
 │       ├── hackernews.py
-│       ├── krebs.py             # Krebs on Security
-│       └── isc.py               # SANS ISC diary + InfoCon
+│       ├── krebs.py
+│       └── isc.py
 └── reports/                     # Generated briefings (gitignored)
 ```
+
+## Adding a New Source
+
+1. Create a fetcher in `threat_brief/sources/` (e.g. `my_source.py`) with a function matching the signature `fetch_my_source(url: str, cutoff: datetime) -> list[ThreatEntry]`
+2. Add a `SourceInfo` entry to the `SOURCE_REGISTRY` list in `threat_brief/sources/registry.py`
+3. Add the source config to `config.yaml` and `config.yaml.example`
+
+No changes to the main pipeline logic are needed — the registry drives fetching, `--list-sources`, the init wizard, and the report header automatically.
