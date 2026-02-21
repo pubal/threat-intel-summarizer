@@ -23,6 +23,50 @@ pip install -e .
 
 Requires a local LLM running an OpenAI-compatible API (e.g., [LM Studio](https://lmstudio.ai/) on `localhost:1234`). Configure the endpoint and model in `config.yaml`.
 
+## Organization Profile
+
+The LLM summarization prompt is built dynamically from an optional `org_profile` section in `config.yaml`. This tailors the briefing to your organization's industry and technology stack.
+
+Run the interactive setup wizard to configure it:
+
+```bash
+threat-brief init
+```
+
+Or add it manually to `config.yaml`. Every field is optional — the tool gracefully degrades with any combination of missing fields:
+
+```yaml
+org_profile:
+  company_name: "Acme Corp"
+  industry:
+    - "Financial Services"
+    - "FinTech"
+  tech_stack:
+    operating_systems:
+      - "Windows 11"
+      - "macOS"
+    infrastructure:
+      - "Active Directory"
+      - "AWS (EC2, S3, Lambda, RDS)"
+    applications:
+      - "Microsoft 365"
+      - "SolarWinds"
+    languages_and_frameworks:
+      - "Python"
+      - ".NET"
+    security_tools:
+      - "CrowdStrike Falcon"
+      - "Splunk"
+```
+
+When configured, the LLM will:
+- Prioritize items affecting technologies in your stack
+- Flag CVEs that specifically name products you use
+- Score relevance higher for your industry verticals
+- Deprioritize items irrelevant to your environment
+
+When no `org_profile` is configured, the tool produces a general-purpose summary prioritized by severity.
+
 ## Usage
 
 ```bash
@@ -43,6 +87,9 @@ threat-brief --format md
 
 # Custom config file
 threat-brief --config /path/to/config.yaml
+
+# Interactive org profile setup
+threat-brief init
 ```
 
 ## Output
@@ -112,7 +159,7 @@ A macOS notification banner will appear when each run completes, showing the ite
 ## Project Structure
 
 ```
-├── config.yaml                  # LLM endpoint, model, source URLs
+├── config.yaml                  # LLM endpoint, model, source URLs, org profile
 ├── threat_brief/
 │   ├── cli.py                   # Click CLI entry point
 │   ├── models.py                # ThreatEntry dataclass
