@@ -8,16 +8,22 @@ llm:
 
 sources:
   cisa_kev:
+    enabled: true
     url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
   msrc:
+    enabled: true
     url: "https://api.msrc.microsoft.com/cvrf/v3.0/updates"
   aws_security:
+    enabled: true
     url: "https://aws.amazon.com/security/security-bulletins/"
   hackernews_threatintel:
+    enabled: true
     url: "https://feeds.feedburner.com/TheHackersNews"
   krebs:
+    enabled: true
     url: "https://krebsonsecurity.com/feed/"
   isc_sans:
+    enabled: true
     url: "https://isc.sans.edu/rssfeed_full.xml"
     infocon_url: "https://isc.sans.edu/infocon.txt"
 

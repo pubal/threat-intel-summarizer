@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import html
 import logging
-import os
 import re
 import subprocess
-import sys
 import webbrowser
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -17,15 +15,8 @@ import yaml
 from threat_brief.html_template import HTML_TEMPLATE
 
 from threat_brief.models import ThreatEntry
-from threat_brief.sources import (
-    fetch_aws_bulletins,
-    fetch_cisa_kev,
-    fetch_hackernews,
-    fetch_isc,
-    fetch_infocon,
-    fetch_krebs,
-    fetch_msrc,
-)
+from threat_brief.sources import fetch_infocon
+from threat_brief.sources.registry import SOURCE_REGISTRY, get_registry_by_key
 from threat_brief.summarizer import summarize
 
 logger = logging.getLogger("threat_brief")
@@ -45,42 +36,51 @@ def _setup_logging(verbose: bool) -> None:
     )
 
 
+def _is_source_enabled(source_cfg: dict) -> bool:
+    """Check if a source is enabled. Missing sources default to enabled for backward compat."""
+    return source_cfg.get("enabled", True)
+
+
+def _get_enabled_sources(config: dict) -> list[str]:
+    """Return display names of all enabled sources."""
+    sources_cfg = config.get("sources", {})
+    registry = get_registry_by_key()
+    names = []
+    for src in SOURCE_REGISTRY:
+        cfg = sources_cfg.get(src.key, {})
+        if _is_source_enabled(cfg):
+            names.append(src.name)
+    return names
+
+
 def _fetch_all(config: dict, cutoff: datetime) -> list[ThreatEntry]:
-    """Fetch from all sources, tolerating individual failures."""
-    sources = config.get("sources", {})
+    """Fetch from all enabled sources, tolerating individual failures."""
+    sources_cfg = config.get("sources", {})
     user_agent = config.get("user_agent", "")
     all_entries: list[ThreatEntry] = []
 
-    fetchers = [
-        ("CISA KEV", fetch_cisa_kev, sources.get("cisa_kev", {}).get("url", "")),
-        ("MSRC", fetch_msrc, sources.get("msrc", {}).get("url", "")),
-        ("AWS Bulletins", fetch_aws_bulletins, sources.get("aws_security", {}).get("url", "")),
-        ("Hacker News", fetch_hackernews, sources.get("hackernews_threatintel", {}).get("url", "")),
-        ("Krebs on Security", fetch_krebs, sources.get("krebs", {}).get("url", "")),
-    ]
+    for src in SOURCE_REGISTRY:
+        cfg = sources_cfg.get(src.key, {})
 
-    for name, fetcher, url in fetchers:
-        if not url:
-            logger.warning("No URL configured for %s, skipping", name)
+        if not _is_source_enabled(cfg):
+            click.echo(f"  [{src.name}] disabled — skipping")
             continue
-        try:
-            entries = fetcher(url, cutoff)
-            all_entries.extend(entries)
-            click.echo(f"  [{name}] {len(entries)} items")
-        except Exception:
-            logger.exception("Source %s failed", name)
-            click.echo(f"  [{name}] FAILED — skipping", err=True)
 
-    # SANS ISC (needs user_agent as extra arg)
-    isc_url = sources.get("isc_sans", {}).get("url", "")
-    if isc_url:
+        url = cfg.get("url", "")
+        if not url:
+            logger.warning("No URL configured for %s, skipping", src.name)
+            continue
+
         try:
-            entries = fetch_isc(isc_url, cutoff, user_agent)
+            if src.needs_user_agent:
+                entries = src.fetch_fn(url, cutoff, user_agent)
+            else:
+                entries = src.fetch_fn(url, cutoff)
             all_entries.extend(entries)
-            click.echo(f"  [SANS ISC] {len(entries)} items")
+            click.echo(f"  [{src.name}] {len(entries)} items")
         except Exception:
-            logger.exception("Source SANS ISC failed")
-            click.echo("  [SANS ISC] FAILED — skipping", err=True)
+            logger.exception("Source %s failed", src.name)
+            click.echo(f"  [{src.name}] FAILED — skipping", err=True)
 
     # Sort by date descending
     all_entries.sort(key=lambda e: e.date, reverse=True)
@@ -163,8 +163,9 @@ def _build_profile_footer(org_profile: dict) -> str:
     default="html",
     help="Output format (default: html)",
 )
+@click.option("--list-sources", is_flag=True, help="List all available sources and exit")
 @click.pass_context
-def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str) -> None:
+def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str, list_sources: bool) -> None:
     """threat-brief — Daily threat intelligence briefing generator."""
     # If a subcommand was invoked, store config_path for it and return
     ctx.ensure_object(dict)
@@ -174,6 +175,22 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
         return
 
     _setup_logging(verbose)
+
+    if list_sources:
+        config = _load_config(config_path)
+        sources_cfg = config.get("sources", {})
+        click.echo("Available sources:\n")
+        for src in SOURCE_REGISTRY:
+            cfg = sources_cfg.get(src.key, {})
+            enabled = _is_source_enabled(cfg)
+            status = "enabled" if enabled else "disabled"
+            marker = "+" if enabled else "-"
+            click.echo(f"  [{marker}] {src.name} ({src.key})")
+            click.echo(f"      {src.description}")
+            click.echo(f"      Status: {status}")
+            click.echo()
+        click.echo("Toggle sources in config.yaml under sources.<key>.enabled")
+        return
 
     config = _load_config(config_path)
     org_profile = config.get("org_profile", {})
@@ -188,14 +205,16 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
 
     entries = _fetch_all(config, cutoff)
 
-    # Fetch InfoCon level separately
-    sources = config.get("sources", {})
+    # Fetch InfoCon level separately (only when ISC is enabled)
+    sources_cfg = config.get("sources", {})
     user_agent = config.get("user_agent", "")
-    infocon_url = sources.get("isc_sans", {}).get("infocon_url", "")
+    isc_cfg = sources_cfg.get("isc_sans", {})
     infocon_level = ""
-    if infocon_url:
-        infocon_level = fetch_infocon(infocon_url, user_agent)
-        click.echo(f"  [InfoCon] Level: {infocon_level.upper()}")
+    if _is_source_enabled(isc_cfg):
+        infocon_url = isc_cfg.get("infocon_url", "")
+        if infocon_url:
+            infocon_level = fetch_infocon(infocon_url, user_agent)
+            click.echo(f"  [InfoCon] Level: {infocon_level.upper()}")
 
     click.echo(f"\nTotal items: {len(entries)}")
 
@@ -205,8 +224,8 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
         click.echo("\nGenerating LLM summary...")
         llm_cfg = config.get("llm", {})
 
-        # Build source list dynamically from configured sources
-        source_names = "CISA KEV, MSRC, AWS Security Bulletins, The Hacker News, Krebs on Security, SANS ISC"
+        # Build source list from enabled sources
+        source_names = ", ".join(_get_enabled_sources(config))
 
         header = (
             f"# Threat Intelligence Briefing\n"
@@ -350,21 +369,60 @@ def init(ctx: click.Context) -> None:
     if tech_stack:
         org_profile["tech_stack"] = tech_stack
 
-    if not org_profile:
-        click.echo("\nNo profile data provided. Config unchanged.")
-        return
-
-    # Read existing config, merge, write back
+    # Source enable/disable
+    click.echo("\nData Sources (y/n, press Enter to keep current setting):")
+    # Read existing config to show current state
     with open(config_path) as f:
         config = yaml.safe_load(f) or {}
 
-    config["org_profile"] = org_profile
+    existing_sources = config.get("sources", {})
+    source_changes: dict[str, bool] = {}
+
+    for src in SOURCE_REGISTRY:
+        current = _is_source_enabled(existing_sources.get(src.key, {}))
+        current_str = "Y" if current else "N"
+        answer = click.prompt(
+            f"  {src.name} — {src.description} [{current_str}]",
+            default="", show_default=False,
+        ).strip().lower()
+        if answer in ("y", "yes"):
+            source_changes[src.key] = True
+        elif answer in ("n", "no"):
+            source_changes[src.key] = False
+        # else keep current
+
+    if not org_profile and not source_changes:
+        click.echo("\nNo changes. Config unchanged.")
+        return
+
+    # Merge into config
+    if org_profile:
+        config["org_profile"] = org_profile
+
+    if source_changes:
+        if "sources" not in config:
+            config["sources"] = {}
+        for key, enabled in source_changes.items():
+            if key not in config["sources"]:
+                # Initialize from registry defaults
+                registry = get_registry_by_key()
+                src = registry[key]
+                config["sources"][key] = {"url": src.default_url}
+                for extra_key, extra_val in src.extra_config.items():
+                    config["sources"][key][extra_key] = extra_val
+            config["sources"][key]["enabled"] = enabled
 
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-    click.echo(f"\nOrg profile saved to {config_path}:")
-    click.echo(yaml.dump({"org_profile": org_profile}, default_flow_style=False, sort_keys=False))
+    click.echo(f"\nConfiguration saved to {config_path}:")
+    if org_profile:
+        click.echo(yaml.dump({"org_profile": org_profile}, default_flow_style=False, sort_keys=False))
+    if source_changes:
+        click.echo("Source changes:")
+        for key, enabled in source_changes.items():
+            status = "enabled" if enabled else "disabled"
+            click.echo(f"  {key}: {status}")
 
 
 def _notify(title: str, message: str) -> None:
