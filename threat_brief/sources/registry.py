@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .aws_bulletins import fetch_aws_bulletins
+from .cisa_all import fetch_cisa_advisories
 from .cisa_kev import fetch_cisa_kev
 from .hackernews import fetch_hackernews
 from .isc import fetch_isc
@@ -26,6 +27,13 @@ class SourceInfo:
 
 
 SOURCE_REGISTRY: list[SourceInfo] = [
+    SourceInfo(
+        key="cisa_advisories",
+        name="CISA Advisories",
+        description="CISA Alerts & Advisories — CVEs, CVSS scores, sector tags, vendor/equipment details (ICS + cybersecurity)",
+        fetch_fn=fetch_cisa_advisories,
+        default_url="https://www.cisa.gov/cybersecurity-advisories/all.xml",
+    ),
     SourceInfo(
         key="cisa_kev",
         name="CISA KEV",
