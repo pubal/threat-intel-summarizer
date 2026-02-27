@@ -10,6 +10,7 @@ All sources can be individually enabled or disabled in `config.yaml`. Missing `e
 
 | Source | Description | Type |
 |--------|-------------|------|
+| **CISA Advisories** | ICS + cybersecurity alerts with CVEs, CVSS scores, sector tags | RSS feed |
 | **CISA KEV** | Known Exploited Vulnerabilities catalog | JSON API |
 | **MSRC** | Microsoft Security Response Center updates | CVRF API v3.0 |
 | **AWS Bulletins** | AWS Security Bulletins | HTML scraping |
@@ -200,6 +201,7 @@ A macOS notification banner will appear when each run completes, showing the ite
 │   ├── summarizer.py            # LLM integration
 │   └── sources/
 │       ├── registry.py          # Source registry — add new sources here
+│       ├── cisa_all.py
 │       ├── cisa_kev.py
 │       ├── msrc.py
 │       ├── aws_bulletins.py
