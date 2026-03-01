@@ -19,7 +19,9 @@ def fetch_isc(url: str, cutoff: datetime, user_agent: str = "") -> list[ThreatEn
     logger.info("Fetching SANS ISC diary feed...")
     headers = {"User-Agent": user_agent} if user_agent else {}
     try:
-        feed = feedparser.parse(url, request_headers=headers)
+        resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
         if feed.bozo and not feed.entries:
             raise ValueError(f"Feed parse error: {feed.bozo_exception}")
     except Exception:

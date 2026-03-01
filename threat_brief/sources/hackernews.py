@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timezone
 
 import feedparser
+import requests
 
 from threat_brief.models import ThreatEntry
 
@@ -17,7 +18,9 @@ def fetch_hackernews(url: str, cutoff: datetime) -> list[ThreatEntry]:
     """Parse The Hacker News RSS feed for threat intel items."""
     logger.info("Fetching The Hacker News RSS feed...")
     try:
-        feed = feedparser.parse(url)
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
         if feed.bozo and not feed.entries:
             raise ValueError(f"Feed parse error: {feed.bozo_exception}")
     except Exception:
