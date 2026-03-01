@@ -6,3 +6,4 @@ __pycache__/
 reports/
 *.plist
 config.yaml
+SECURITY_AUDIT.md
