@@ -26,10 +26,14 @@ class ThreatEntry:
         }
 
     def summary_line(self) -> str:
-        cve_str = ", ".join(self.cves) if self.cves else "N/A"
+        cve_links = [
+            f"[{c}](https://nvd.nist.gov/vuln/detail/{c})" for c in self.cves
+        ]
+        cve_str = ", ".join(cve_links) if cve_links else "N/A"
+        url_link = f"[Link]({self.url})" if self.url else ""
         return (
             f"- **{self.title}** ({self.source})\n"
             f"  Severity: {self.severity} | CVEs: {cve_str}\n"
             f"  {self.description[:200]}\n"
-            f"  Link: {self.url}\n"
+            f"  {url_link}\n"
         )

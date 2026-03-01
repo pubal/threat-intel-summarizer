@@ -104,16 +104,45 @@ def _dry_run_output(entries: list[ThreatEntry]) -> str:
 
     lines = [f"# Raw Threat Intel Items ({len(entries)} total)\n"]
     for i, e in enumerate(entries, 1):
+        cves = (
+            ", ".join(
+                f"[{c}](https://nvd.nist.gov/vuln/detail/{c})" for c in e.cves
+            )
+            if e.cves
+            else "N/A"
+        )
         lines.append(
             f"## {i}. {e.title}\n"
             f"- **Source:** {e.source}\n"
             f"- **Date:** {e.date.strftime('%Y-%m-%d %H:%M UTC')}\n"
             f"- **Severity:** {e.severity}\n"
-            f"- **CVEs:** {', '.join(e.cves) if e.cves else 'N/A'}\n"
+            f"- **CVEs:** {cves}\n"
             f"- **Description:** {e.description}\n"
-            f"- **URL:** {e.url}\n"
+            f"- **URL:** [{e.url}]({e.url})\n"
         )
     return "\n".join(lines)
+
+
+# Section heading text → CSS class for border-bottom color coding
+_SECTION_CLASS_MAP = {
+    "Critical / Action Required": "section-critical",
+    "High Relevance": "section-high",
+}
+
+
+def _post_process_html(body_html: str) -> str:
+    """Open all links in a new tab and stamp CSS classes onto section headings."""
+    body_html = re.sub(
+        r"<a href=",
+        '<a target="_blank" rel="noopener noreferrer" href=',
+        body_html,
+    )
+    for heading_text, css_class in _SECTION_CLASS_MAP.items():
+        body_html = body_html.replace(
+            f"<h2>{heading_text}</h2>",
+            f'<h2 class="{css_class}">{heading_text}</h2>',
+        )
+    return body_html
 
 
 def _build_profile_footer(org_profile: dict) -> str:
@@ -251,6 +280,7 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
         # untrusted feed content, while preserving markdown formatting
         sanitized = re.sub(r"<[^>]+>", "", output)
         body_html = markdown.markdown(sanitized, extensions=["extra", "sane_lists"])
+        body_html = _post_process_html(body_html)
         generated_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         if infocon_level:
             infocon_badge = (

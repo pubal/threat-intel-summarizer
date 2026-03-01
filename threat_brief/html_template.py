@@ -84,19 +84,10 @@ HTML_TEMPLATE = """\
     color: var(--text-primary);
   }}
 
-  /* Color-coded section headings */
-  h2:has(~ .critical), h2#critical,
-  h2:nth-of-type(2) {{
-    border-bottom-color: var(--critical);
-  }}
 
-  h2:nth-of-type(3) {{
-    border-bottom-color: var(--high);
-  }}
-
-  h2:nth-of-type(4) {{
-    border-bottom-color: var(--awareness);
-  }}
+  /* Color-coded section dividers — border only, text stays default */
+  h2.section-critical {{ border-bottom-color: var(--critical); }}
+  h2.section-high {{ border-bottom-color: var(--high); }}
 
   h3 {{
     font-size: 1.05rem;
@@ -152,6 +143,7 @@ HTML_TEMPLATE = """\
     border-top: 1px solid var(--border);
     margin: 1.5rem 0;
   }}
+
 
   .infocon-badge {{
     display: inline-block;
