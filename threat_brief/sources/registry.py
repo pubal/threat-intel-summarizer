@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable
 
+from .apple_security import fetch_apple_security
 from .aws_bulletins import fetch_aws_bulletins
 from .cisa_all import fetch_cisa_advisories
 from .cisa_kev import fetch_cisa_kev
@@ -24,9 +25,18 @@ class SourceInfo:
     default_url: str
     extra_config: dict[str, str] = field(default_factory=dict)
     needs_user_agent: bool = False
+    needs_source_cfg: bool = False
 
 
 SOURCE_REGISTRY: list[SourceInfo] = [
+    SourceInfo(
+        key="apple_security",
+        name="Apple Security",
+        description="Apple security updates for iOS, macOS, watchOS, tvOS, Safari — with optional CVE detail enrichment",
+        fetch_fn=fetch_apple_security,
+        default_url="https://support.apple.com/en-us/100100",
+        needs_source_cfg=True,
+    ),
     SourceInfo(
         key="cisa_advisories",
         name="CISA Advisories",

@@ -74,6 +74,8 @@ def _fetch_all(config: dict, cutoff: datetime) -> list[ThreatEntry]:
         try:
             if src.needs_user_agent:
                 entries = src.fetch_fn(url, cutoff, user_agent)
+            elif src.needs_source_cfg:
+                entries = src.fetch_fn(url, cutoff, cfg)
             else:
                 entries = src.fetch_fn(url, cutoff)
             all_entries.extend(entries)

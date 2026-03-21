@@ -7,6 +7,11 @@ llm:
   temperature: 0.3
 
 sources:
+  apple_security:
+    enabled: true
+    url: "https://support.apple.com/en-us/100100"
+    fetch_details: true   # Fetch individual release pages for CVE counts and impact descriptions
+    group_by_date: true   # Consolidate same-day releases (iOS + macOS + watchOS etc.) into one item
   cisa_advisories:
     enabled: true
     url: "https://www.cisa.gov/cybersecurity-advisories/all.xml"
