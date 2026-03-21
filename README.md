@@ -10,6 +10,7 @@ All sources can be individually enabled or disabled in `config.yaml`. Missing `e
 
 | Source | Description | Type |
 |--------|-------------|------|
+| **Apple Security** | iOS, macOS, watchOS, tvOS, Safari updates — CVE enrichment from detail pages, actively-exploited detection, same-day grouping | HTML scraping |
 | **CISA Advisories** | ICS + cybersecurity alerts with CVEs, CVSS scores, sector tags | RSS feed |
 | **CISA KEV** | Known Exploited Vulnerabilities catalog | JSON API |
 | **MSRC** | Microsoft Security Response Center updates | CVRF API v3.0 |
@@ -17,6 +18,20 @@ All sources can be individually enabled or disabled in `config.yaml`. Missing `e
 | **The Hacker News** | Cybersecurity news and threat reporting | RSS feed |
 | **Krebs on Security** | Investigative cybersecurity journalism | RSS feed |
 | **SANS ISC** | Internet Storm Center diary + InfoCon threat level | RSS + API |
+
+The Apple Security source has two extra config options:
+
+```yaml
+sources:
+  apple_security:
+    enabled: true
+    url: "https://support.apple.com/en-us/100100"
+    fetch_details: true   # Fetch individual release pages for CVE counts and impact descriptions
+    group_by_date: true   # Consolidate same-day releases (iOS + macOS + watchOS etc.) into one item
+```
+
+- **`fetch_details: true`** — fetches each release's detail page to extract CVE IDs, component names (WebKit, Kernel, etc.), impact descriptions, and the actively-exploited flag. When a release is flagged as actively exploited, severity is set to `Critical` and the description is prefixed with `ACTIVELY EXPLOITED:`. Set to `false` for faster runs with less data.
+- **`group_by_date: true`** — on Apple patch days, iOS, macOS, watchOS, tvOS, and Safari often drop simultaneously. This consolidates them into a single briefing item (e.g. "Apple Security Updates — 2026-03-17") with a merged CVE list, preventing Apple from flooding the report with 6–8 separate entries.
 
 ```yaml
 # config.yaml — toggle individual sources
@@ -201,6 +216,7 @@ A macOS notification banner will appear when each run completes, showing the ite
 │   ├── summarizer.py            # LLM integration
 │   └── sources/
 │       ├── registry.py          # Source registry — add new sources here
+│       ├── apple_security.py
 │       ├── cisa_all.py
 │       ├── cisa_kev.py
 │       ├── msrc.py
