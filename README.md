@@ -17,6 +17,7 @@ All sources can be individually enabled or disabled in `config.yaml`. Missing `e
 | **AWS Bulletins** | AWS Security Bulletins | HTML scraping |
 | **The Hacker News** | Cybersecurity news and threat reporting | RSS feed |
 | **Krebs on Security** | Investigative cybersecurity journalism | RSS feed |
+| **Mandiant** | Google/Mandiant threat intelligence research — APT campaigns, threat actors, malware analysis, exploitation trends | RSS feed |
 | **SANS ISC** | Internet Storm Center diary + InfoCon threat level | RSS + API |
 
 The Apple Security source has two extra config options:
@@ -223,6 +224,7 @@ A macOS notification banner will appear when each run completes, showing the ite
 │       ├── aws_bulletins.py
 │       ├── hackernews.py
 │       ├── krebs.py
+│       ├── mandiant.py
 │       └── isc.py
 └── reports/                     # Generated briefings (gitignored)
 ```
