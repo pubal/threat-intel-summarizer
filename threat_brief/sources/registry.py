@@ -6,6 +6,7 @@ from typing import Callable
 
 from .apple_security import fetch_apple_security
 from .aws_bulletins import fetch_aws_bulletins
+from .mandiant import fetch_mandiant
 from .cisa_all import fetch_cisa_advisories
 from .cisa_kev import fetch_cisa_kev
 from .hackernews import fetch_hackernews
@@ -78,6 +79,13 @@ SOURCE_REGISTRY: list[SourceInfo] = [
         description="Krebs on Security — investigative cybersecurity journalism",
         fetch_fn=fetch_krebs,
         default_url="https://krebsonsecurity.com/feed/",
+    ),
+    SourceInfo(
+        key="mandiant",
+        name="Mandiant",
+        description="Google/Mandiant threat intelligence research — APT campaigns, threat actors, malware analysis, and exploitation trends",
+        fetch_fn=fetch_mandiant,
+        default_url="https://feeds.feedburner.com/threatintelligence/pvexyqv7v0v",
     ),
     SourceInfo(
         key="isc_sans",

@@ -34,6 +34,9 @@ sources:
     enabled: true
     url: "https://isc.sans.edu/rssfeed_full.xml"
     infocon_url: "https://isc.sans.edu/infocon.txt"
+  mandiant:
+    enabled: true
+    url: "https://feeds.feedburner.com/threatintelligence/pvexyqv7v0v"
 
 # Optional — run `threat-brief init` to configure interactively
 # org_profile:
