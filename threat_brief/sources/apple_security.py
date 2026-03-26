@@ -26,6 +26,7 @@ _BROWSER_UA = (
 )
 _BASE_URL = "https://support.apple.com"
 _DATE_FMT = "%d %b %Y"  # "17 Mar 2026"
+_NO_CVE_TEXT = "This update has no published CVE entries."
 
 # h3 headings on Apple detail pages that are not component names
 _SKIP_HEADINGS = frozenset(
@@ -80,8 +81,12 @@ def fetch_apple_security(
             continue
 
         try:
+            # Apple only provides a date, not a time. Use end-of-day so that
+            # releases aren't excluded by an intraday cutoff boundary (e.g. a
+            # release dated "24 Mar" would be midnight UTC, which falls outside
+            # a 48h window run at 9 AM on March 26).
             release_date = datetime.strptime(date_str, _DATE_FMT).replace(
-                tzinfo=timezone.utc
+                hour=23, minute=59, second=59, tzinfo=timezone.utc
             )
         except ValueError:
             logger.debug("Apple: could not parse date %r", date_str)
@@ -90,11 +95,11 @@ def fetch_apple_security(
         if release_date < cutoff:
             continue
 
-        name = name_cell.get_text(strip=True)
         link_tag = name_cell.find("a")
 
         if not link_tag:
             # No detail page — informational-only (e.g. "no published CVE entries")
+            name = name_cell.get_text(strip=True).replace(_NO_CVE_TEXT, "").strip()
             releases.append(
                 {
                     "name": name,
@@ -110,6 +115,9 @@ def fetch_apple_security(
             )
             continue
 
+        # Use link text only — avoids picking up inline "no CVE entries" text
+        # that some cells append after the <a> tag.
+        name = link_tag.get_text(strip=True).replace(_NO_CVE_TEXT, "").strip()
         detail_path = link_tag.get("href", "")
         detail_url = (
             _BASE_URL + detail_path
