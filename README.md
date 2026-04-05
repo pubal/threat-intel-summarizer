@@ -114,6 +114,34 @@ When configured, the LLM will:
 
 When no `org_profile` is configured, the tool produces a general-purpose summary prioritized by severity.
 
+## Delta Tracking — [NEW] Badges
+
+After each run, a manifest is saved to `reports/.last_run.json` containing a fingerprint of every item seen (hash of source + title + CVEs). On the next run, any item not in the previous manifest is tagged as new.
+
+- **HTML reports** — a cyan `NEW` pill badge appears inline next to the item title
+- **Dry-run and fallback reports** — `[NEW]` is appended to the item title
+- **Markdown output** — `[NEW]` appears as plain text
+- **Report header** — shows `51 items (7 new)`, `51 items (first run)`, or plain count
+- **LLM prompt** — new items are marked `[NEW]` in the input; the system prompt instructs the model to call them out in the TL;DR
+
+The manifest is always written after every successful run regardless of the setting, so toggling the feature on later still produces an accurate diff.
+
+**Configuration:**
+
+```yaml
+settings:
+  flag_new_items: true   # default — set to false to disable globally
+```
+
+**CLI overrides** (apply to a single run only, override config):
+
+```bash
+threat-brief --diff      # enable badges for this run
+threat-brief --no-diff   # disable badges for this run
+```
+
+`--diff` and `--no-diff` are mutually exclusive. The setting can also be toggled via `threat-brief init`.
+
 ## Usage
 
 ```bash
@@ -138,7 +166,7 @@ threat-brief --config /path/to/config.yaml
 # List all sources and their enabled/disabled status
 threat-brief --list-sources
 
-# Interactive setup (org profile + source toggle)
+# Interactive setup (org profile, source toggle, delta tracking)
 threat-brief init
 ```
 
@@ -213,6 +241,7 @@ A macOS notification banner will appear when each run completes, showing the ite
 ├── threat_brief/
 │   ├── cli.py                   # Click CLI entry point
 │   ├── models.py                # ThreatEntry dataclass
+│   ├── delta.py                 # Delta tracking — fingerprints and manifest
 │   ├── html_template.py         # Dark-themed HTML report template
 │   ├── summarizer.py            # LLM integration
 │   └── sources/
