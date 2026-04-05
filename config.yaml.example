@@ -59,3 +59,8 @@ sources:
 
 reports_dir: "./reports"
 default_hours: 48
+
+settings:
+  # Tag items not seen in the previous run with a [NEW] badge.
+  # Use --diff / --no-diff at the CLI to override for a single run.
+  flag_new_items: true

@@ -12,8 +12,13 @@ import click
 import markdown
 import yaml
 
+from threat_brief.delta import (
+    get_new_fingerprints,
+    item_fingerprint,
+    load_manifest,
+    save_manifest,
+)
 from threat_brief.html_template import HTML_TEMPLATE
-
 from threat_brief.models import ThreatEntry
 from threat_brief.sources import fetch_infocon
 from threat_brief.sources.registry import SOURCE_REGISTRY, get_registry_by_key
@@ -99,11 +104,14 @@ def _write_report(content: str, reports_dir: str, ext: str = ".html") -> Path:
     return filepath
 
 
-def _dry_run_output(entries: list[ThreatEntry]) -> str:
+def _dry_run_output(
+    entries: list[ThreatEntry], new_fingerprints: set[str] | None = None
+) -> str:
     """Format raw items for dry-run mode."""
     if not entries:
         return "No items found in the reporting window.\n"
 
+    new_fps = new_fingerprints or set()
     lines = [f"# Raw Threat Intel Items ({len(entries)} total)\n"]
     for i, e in enumerate(entries, 1):
         cves = (
@@ -113,8 +121,9 @@ def _dry_run_output(entries: list[ThreatEntry]) -> str:
             if e.cves
             else "N/A"
         )
+        new_badge = " [NEW]" if item_fingerprint(e) in new_fps else ""
         lines.append(
-            f"## {i}. {e.title}\n"
+            f"## {i}. {e.title}{new_badge}\n"
             f"- **Source:** {e.source}\n"
             f"- **Date:** {e.date.strftime('%Y-%m-%d %H:%M UTC')}\n"
             f"- **Severity:** {e.severity}\n"
@@ -133,7 +142,8 @@ _SECTION_CLASS_MAP = {
 
 
 def _post_process_html(body_html: str) -> str:
-    """Open all links in a new tab and stamp CSS classes onto section headings."""
+    """Open all links in a new tab, stamp CSS classes onto section headings,
+    and convert [NEW] markers into badge HTML."""
     body_html = re.sub(
         r"<a href=",
         '<a target="_blank" rel="noopener noreferrer" href=',
@@ -144,6 +154,10 @@ def _post_process_html(body_html: str) -> str:
             f"<h2>{heading_text}</h2>",
             f'<h2 class="{css_class}">{heading_text}</h2>',
         )
+    body_html = body_html.replace(
+        "[NEW]",
+        '<span class="badge-new">NEW</span>',
+    )
     return body_html
 
 
@@ -195,8 +209,22 @@ def _build_profile_footer(org_profile: dict) -> str:
     help="Output format (default: html)",
 )
 @click.option("--list-sources", is_flag=True, help="List all available sources and exit")
+@click.option(
+    "--diff",
+    "diff_flag",
+    is_flag=True,
+    default=False,
+    help="Enable [NEW] badges for this run, regardless of config",
+)
+@click.option(
+    "--no-diff",
+    "no_diff_flag",
+    is_flag=True,
+    default=False,
+    help="Disable [NEW] badges for this run, regardless of config",
+)
 @click.pass_context
-def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str, list_sources: bool) -> None:
+def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str, list_sources: bool, diff_flag: bool, no_diff_flag: bool) -> None:
     """threat-brief — Daily threat intelligence briefing generator."""
     # If a subcommand was invoked, store config_path for it and return
     ctx.ensure_object(dict)
@@ -223,18 +251,44 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
         click.echo("Toggle sources in config.yaml under sources.<key>.enabled")
         return
 
+    if diff_flag and no_diff_flag:
+        raise click.UsageError("--diff and --no-diff are mutually exclusive")
+
     config = _load_config(config_path)
     org_profile = config.get("org_profile", {})
     company_name = org_profile.get("company_name", "")
     lookback = hours if hours is not None else config.get("default_hours", 48)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback)
 
+    # Resolve delta-tracking setting (CLI flags override config)
+    settings = config.get("settings", {})
+    if diff_flag:
+        track_new = True
+    elif no_diff_flag:
+        track_new = False
+    else:
+        track_new = settings.get("flag_new_items", True)
+
     click.echo(f"Threat Brief — lookback: {lookback}h (cutoff: {cutoff.strftime('%Y-%m-%d %H:%M UTC')})")
     if company_name:
         click.echo(f"Organization: {company_name}")
     click.echo("Fetching sources...")
 
+    reports_dir = config.get("reports_dir", "./reports")
     entries = _fetch_all(config, cutoff)
+
+    # Delta tracking — load previous manifest, compute new fingerprints
+    manifest = load_manifest(reports_dir)
+    new_fingerprints = get_new_fingerprints(entries, manifest) if track_new else set()
+    new_count = len(new_fingerprints)
+
+    # Build the items label for the report header
+    if not track_new:
+        new_items_suffix = ""
+    elif manifest is None:
+        new_items_suffix = " (first run)"
+    else:
+        new_items_suffix = f" ({new_count} new)"
 
     # Fetch InfoCon level separately (only when ISC is enabled)
     sources_cfg = config.get("sources", {})
@@ -247,10 +301,10 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
             infocon_level = fetch_infocon(infocon_url, user_agent)
             click.echo(f"  [InfoCon] Level: {infocon_level.upper()}")
 
-    click.echo(f"\nTotal items: {len(entries)}")
+    click.echo(f"\nTotal items: {len(entries)}{new_items_suffix}")
 
     if dry_run:
-        output = _dry_run_output(entries)
+        output = _dry_run_output(entries, new_fingerprints if track_new else None)
     else:
         click.echo("\nGenerating LLM summary...")
         llm_cfg = config.get("llm", {})
@@ -263,7 +317,7 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
             f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}  \n"
             f"**Window:** Last {lookback} hours  \n"
             f"**Sources:** {source_names}  \n"
-            f"**Items analyzed:** {len(entries)}\n\n---\n\n"
+            f"**Items analyzed:** {len(entries)}{new_items_suffix}\n\n---\n\n"
         )
         summary = summarize(
             entries,
@@ -273,6 +327,7 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
             temperature=llm_cfg.get("temperature", 0.3),
             infocon_level=infocon_level,
             org_profile=org_profile,
+            new_fingerprints=new_fingerprints if track_new else None,
         )
         output = header + summary
 
@@ -296,6 +351,7 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
             generated=generated_ts,
             window=f"Last {lookback} hours",
             item_count=len(entries),
+            new_items_suffix=new_items_suffix,
             body=body_html,
             infocon_badge=infocon_badge,
             profile_footer=profile_footer,
@@ -310,9 +366,11 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
     click.echo(output)
 
     # Write to file
-    reports_dir = config.get("reports_dir", "./reports")
     filepath = _write_report(final_output, reports_dir, ext=ext)
     click.echo(f"\nReport saved to: {filepath}")
+
+    # Always save manifest so future runs have an accurate baseline
+    save_manifest(entries, reports_dir)
 
     # Auto-open HTML in browser
     if output_format == "html":
@@ -423,13 +481,39 @@ def init(ctx: click.Context) -> None:
             source_changes[src.key] = False
         # else keep current
 
-    if not org_profile and not source_changes:
+    # Delta tracking setting
+    existing_settings = config.get("settings", {})
+    current_flag = existing_settings.get("flag_new_items", True)
+    current_str = "Y" if current_flag else "N"
+    click.echo("\nDelta tracking:")
+    click.echo(
+        "  When enabled, items that didn't appear in your previous briefing\n"
+        "  will be marked with a [NEW] badge so you can quickly see what changed."
+    )
+    flag_answer = click.prompt(
+        f"  Tag new items since last run with a NEW badge? [{current_str}]",
+        default="",
+        show_default=False,
+    ).strip().lower()
+    if flag_answer in ("y", "yes"):
+        flag_new_items: bool | None = True
+    elif flag_answer in ("n", "no"):
+        flag_new_items = False
+    else:
+        flag_new_items = None  # keep current
+
+    if not org_profile and not source_changes and flag_new_items is None:
         click.echo("\nNo changes. Config unchanged.")
         return
 
     # Merge into config
     if org_profile:
         config["org_profile"] = org_profile
+
+    if flag_new_items is not None:
+        if "settings" not in config:
+            config["settings"] = {}
+        config["settings"]["flag_new_items"] = flag_new_items
 
     if source_changes:
         if "sources" not in config:

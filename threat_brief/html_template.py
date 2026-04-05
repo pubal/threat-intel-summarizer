@@ -145,6 +145,20 @@ HTML_TEMPLATE = """\
   }}
 
 
+  .badge-new {{
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    background: #17a2b8;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+  }}
+
   .infocon-badge {{
     display: inline-block;
     padding: 0.2rem 0.6rem;
@@ -225,7 +239,7 @@ HTML_TEMPLATE = """\
   <div class="header-meta">
     <span>Generated: {generated}</span>
     <span>Window: {window}</span>
-    <span>Items: {item_count}</span>
+    <span>Items: {item_count}{new_items_suffix}</span>
     {infocon_badge}
   </div>
 </header>
