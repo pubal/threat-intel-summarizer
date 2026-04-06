@@ -161,6 +161,25 @@ def _post_process_html(body_html: str) -> str:
     return body_html
 
 
+def _new_items_callout_html(new_entries: list[ThreatEntry]) -> str:
+    """Build a deterministic 'new since last run' callout box for the HTML report."""
+    if not new_entries:
+        return ""
+    items_html = "".join(
+        f"<li><strong>{html.escape(e.title)}</strong> "
+        f"<span>({html.escape(e.source)})</span></li>"
+        for e in new_entries
+    )
+    count = len(new_entries)
+    label = f"{count} new item{'s' if count != 1 else ''} since last run"
+    return (
+        f'<div class="new-items-callout">'
+        f'<div class="callout-title">{label}</div>'
+        f"<ul>{items_html}</ul>"
+        f"</div>"
+    )
+
+
 def _build_profile_footer(org_profile: dict) -> str:
     """Build HTML footer showing org profile context, or empty string."""
     company = org_profile.get("company_name", "")
@@ -338,6 +357,14 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
         sanitized = re.sub(r"<[^>]+>", "", output)
         body_html = markdown.markdown(sanitized, extensions=["extra", "sane_lists"])
         body_html = _post_process_html(body_html)
+
+        # Inject deterministic new-items callout for LLM summary path.
+        # Dry-run injects [NEW] directly into heading text (converted by
+        # _post_process_html above), so the callout is only needed here.
+        if not dry_run and track_new and new_fingerprints:
+            new_entries = [e for e in entries if item_fingerprint(e) in new_fingerprints]
+            body_html = body_html + _new_items_callout_html(new_entries)
+
         generated_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         if infocon_level:
             infocon_badge = (
@@ -358,6 +385,12 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
         )
         ext = ".html"
     else:
+        if not dry_run and track_new and new_fingerprints:
+            new_entries = [e for e in entries if item_fingerprint(e) in new_fingerprints]
+            titles = ", ".join(e.title for e in new_entries)
+            count = len(new_entries)
+            label = f"{count} new item{'s' if count != 1 else ''} since last run"
+            output = output + f"\n\n> **{label}:** {titles}"
         final_output = output
         ext = ".md"
 

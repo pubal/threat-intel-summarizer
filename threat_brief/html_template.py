@@ -159,6 +159,27 @@ HTML_TEMPLATE = """\
     margin-left: 0.4rem;
   }}
 
+  .new-items-callout {{
+    background: rgba(23, 162, 184, 0.08);
+    border: 1px solid #17a2b8;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+  }}
+  .new-items-callout .callout-title {{
+    color: #17a2b8;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+  }}
+  .new-items-callout ul {{
+    margin: 0.35rem 0 0 1.25rem;
+    color: var(--text-secondary);
+  }}
+  .new-items-callout li strong {{
+    color: var(--text-primary);
+  }}
+
   .infocon-badge {{
     display: inline-block;
     padding: 0.2rem 0.6rem;
