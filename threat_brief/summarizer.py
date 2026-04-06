@@ -91,8 +91,7 @@ def build_system_prompt(org_profile: dict, has_new_items: bool = False) -> str:
     if has_new_items:
         parts.append(
             "Items marked [NEW] have not appeared in previous briefings — "
-            "call these out if they are significant, and note the count of new "
-            "items in the TL;DR executive summary."
+            "call these out if they are significant."
         )
 
     parts.append(

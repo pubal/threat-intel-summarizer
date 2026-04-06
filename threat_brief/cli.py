@@ -167,7 +167,8 @@ def _new_items_callout_html(new_entries: list[ThreatEntry]) -> str:
         return ""
     items_html = "".join(
         f"<li><strong>{html.escape(e.title)}</strong> "
-        f"<span>({html.escape(e.source)})</span></li>"
+        f'(<a href="{html.escape(e.url)}" target="_blank" rel="noopener noreferrer">'
+        f"{html.escape(e.source)}</a>)</li>"
         for e in new_entries
     )
     count = len(new_entries)
