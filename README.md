@@ -118,9 +118,9 @@ When no `org_profile` is configured, the tool produces a general-purpose summary
 
 After each run, a manifest is saved to `reports/.last_run.json` containing a fingerprint of every item seen (hash of source + title + CVEs). On the next run, any item not in the previous manifest is tagged as new.
 
-- **HTML reports** — a cyan `NEW` pill badge appears inline next to the item title
-- **Dry-run and fallback reports** — `[NEW]` is appended to the item title
-- **Markdown output** — `[NEW]` appears as plain text
+- **HTML reports (LLM summary)** — a cyan callout box is appended at the bottom of the report listing each new item's title and source
+- **HTML reports (dry-run / fallback)** — a cyan `NEW` pill badge appears inline next to each new item's heading
+- **Markdown output** — a blockquote listing new item titles is appended after the summary
 - **Report header** — shows `51 items (7 new)`, `51 items (first run)`, or plain count
 - **LLM prompt** — new items are marked `[NEW]` in the input; the system prompt instructs the model to call them out in the TL;DR
 
