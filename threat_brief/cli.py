@@ -556,6 +556,7 @@ def init(ctx: click.Context) -> None:
     new_provider: str | None = None
     new_api_key: str | None = None
     new_endpoint: str | None = None
+    new_model: str | None = None
 
     if provider_answer in ("openai_compatible", "openai"):
         new_provider = provider_answer
@@ -577,6 +578,18 @@ def init(ctx: click.Context) -> None:
         ).strip()
         if key_answer:
             new_api_key = key_answer
+
+        current_model = existing_llm.get("model", "gpt-4o-mini")
+        model_answer = click.prompt(
+            f"  Model [{current_model}]",
+            default="",
+            show_default=False,
+        ).strip()
+        if model_answer:
+            new_model = model_answer
+        elif new_provider == "openai" and current_model == "local-model":
+            # Switching to openai with a placeholder model — set a sensible default
+            new_model = "gpt-4o-mini"
     else:
         current_ep = existing_llm.get("endpoint", "http://localhost:1234/v1")
         ep_answer = click.prompt(
@@ -587,7 +600,7 @@ def init(ctx: click.Context) -> None:
         if ep_answer:
             new_endpoint = ep_answer
 
-    llm_changed = any(v is not None for v in (new_provider, new_api_key, new_endpoint))
+    llm_changed = any(v is not None for v in (new_provider, new_api_key, new_endpoint, new_model))
 
     if not org_profile and not source_changes and flag_new_items is None and not llm_changed:
         click.echo("\nNo changes. Config unchanged.")
@@ -620,6 +633,8 @@ def init(ctx: click.Context) -> None:
             config["llm"] = {}
         if new_provider is not None:
             config["llm"]["provider"] = new_provider
+        if new_model is not None:
+            config["llm"]["model"] = new_model
         if new_api_key is not None:
             config["llm"]["api_key"] = new_api_key
         if new_endpoint is not None:

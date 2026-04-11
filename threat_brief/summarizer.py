@@ -180,6 +180,13 @@ def summarize(
             "Cannot connect to LLM endpoint at %s. Is LM Studio running?", endpoint
         )
         return _fallback_report(entries, new_fps)
+    except openai.APIStatusError as e:
+        logger.error(
+            "LLM API error %s: %s — check your provider, model, and api_key settings",
+            e.status_code,
+            e.message,
+        )
+        return _fallback_report(entries, new_fps)
     except Exception:
         logger.exception("LLM summarization failed")
         return _fallback_report(entries, new_fps)
