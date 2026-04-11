@@ -68,7 +68,38 @@ pip install -e .
 cp config.yaml.example config.yaml
 ```
 
-Edit `config.yaml` with your LLM endpoint and model. Requires a local LLM running an OpenAI-compatible API (e.g., [LM Studio](https://lmstudio.ai/) on `localhost:1234`).
+Edit `config.yaml` with your LLM endpoint and model.
+
+## LLM Provider
+
+Two providers are supported, configured via `llm.provider` in `config.yaml`:
+
+| Provider | Description |
+|----------|-------------|
+| `openai_compatible` | **Default.** Any local LLM running an OpenAI-compatible API — [LM Studio](https://lmstudio.ai/), Ollama, etc. Set `endpoint` to the server URL (e.g. `http://localhost:1234/v1`). No API key needed. |
+| `openai` | OpenAI's API directly. Set `model` to e.g. `gpt-4o` and supply an API key. |
+
+```yaml
+# Local LLM (default)
+llm:
+  provider: openai_compatible
+  endpoint: "http://localhost:1234/v1"
+  model: "local-model"
+  max_tokens: 4096
+  temperature: 0.3
+
+# OpenAI API
+llm:
+  provider: openai
+  model: "gpt-4o"
+  api_key: "sk-..."         # or set OPENAI_API_KEY env var
+  max_tokens: 4096
+  temperature: 0.3
+```
+
+The `api_key` field can be omitted and the `OPENAI_API_KEY` environment variable used instead to avoid storing credentials in `config.yaml`.
+
+The provider can also be selected interactively via `threat-brief init`.
 
 ## Organization Profile
 

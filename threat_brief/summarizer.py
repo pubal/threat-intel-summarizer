@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
 import logging
 
-import requests
+import openai
 
 from threat_brief.delta import item_fingerprint
 from threat_brief.models import ThreatEntry
@@ -115,8 +114,10 @@ def summarize(
     infocon_level: str = "",
     org_profile: dict | None = None,
     new_fingerprints: set[str] | None = None,
+    provider: str = "openai_compatible",
+    api_key: str = "",
 ) -> str:
-    """Send aggregated threat entries to a local LLM for summarization."""
+    """Send aggregated threat entries to a LLM for summarization."""
     if not entries:
         return _empty_report()
 
@@ -150,26 +151,31 @@ def summarize(
         "Please produce the briefing now."
     )
 
-    logger.info("Sending %d items to LLM at %s (model: %s)", len(entries), endpoint, model)
+    logger.info(
+        "Sending %d items to LLM (provider: %s, model: %s)",
+        len(entries), provider, model,
+    )
 
     try:
-        resp = requests.post(
-            f"{endpoint}/chat/completions",
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-            },
-            timeout=120,
+        if provider == "openai":
+            client = openai.OpenAI(api_key=api_key)
+        else:  # openai_compatible (default) — works with LM Studio, Ollama, etc.
+            client = openai.OpenAI(
+                base_url=endpoint,
+                api_key=api_key or "not-needed",
+            )
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
         )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
-    except requests.ConnectionError:
+        return response.choices[0].message.content
+    except openai.APIConnectionError:
         logger.error(
             "Cannot connect to LLM endpoint at %s. Is LM Studio running?", endpoint
         )

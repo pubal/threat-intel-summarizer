@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import logging
+import os
 import re
 import subprocess
 import webbrowser
@@ -328,6 +329,8 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
     else:
         click.echo("\nGenerating LLM summary...")
         llm_cfg = config.get("llm", {})
+        provider = llm_cfg.get("provider", "openai_compatible")
+        api_key = llm_cfg.get("api_key", "") or os.environ.get("OPENAI_API_KEY", "")
 
         # Build source list from enabled sources
         source_names = ", ".join(_get_enabled_sources(config))
@@ -348,6 +351,8 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
             infocon_level=infocon_level,
             org_profile=org_profile,
             new_fingerprints=new_fingerprints if track_new else None,
+            provider=provider,
+            api_key=api_key,
         )
         output = header + summary
 
@@ -536,7 +541,55 @@ def init(ctx: click.Context) -> None:
     else:
         flag_new_items = None  # keep current
 
-    if not org_profile and not source_changes and flag_new_items is None:
+    # LLM provider selection
+    existing_llm = config.get("llm", {})
+    current_provider = existing_llm.get("provider", "openai_compatible")
+    click.echo("\nLLM Provider:")
+    click.echo("  openai_compatible — local endpoint (LM Studio, Ollama, etc.)")
+    click.echo("  openai            — OpenAI API directly (requires API key)")
+    provider_answer = click.prompt(
+        f"  Provider [{current_provider}]",
+        default="",
+        show_default=False,
+    ).strip().lower()
+
+    new_provider: str | None = None
+    new_api_key: str | None = None
+    new_endpoint: str | None = None
+
+    if provider_answer in ("openai_compatible", "openai"):
+        new_provider = provider_answer
+
+    effective_provider = new_provider or current_provider
+
+    if effective_provider == "openai":
+        current_key = existing_llm.get("api_key", "")
+        masked = f"...{current_key[-8:]}" if len(current_key) > 8 else ("(set)" if current_key else "(not set)")
+        click.echo(
+            "\n  Note: Your API key will be stored in config.yaml in plaintext.\n"
+            "  Alternatively, set the OPENAI_API_KEY environment variable and\n"
+            "  leave the api_key field empty."
+        )
+        key_answer = click.prompt(
+            f"  OpenAI API key [{masked}]",
+            default="",
+            show_default=False,
+        ).strip()
+        if key_answer:
+            new_api_key = key_answer
+    else:
+        current_ep = existing_llm.get("endpoint", "http://localhost:1234/v1")
+        ep_answer = click.prompt(
+            f"  Local endpoint [{current_ep}]",
+            default="",
+            show_default=False,
+        ).strip()
+        if ep_answer:
+            new_endpoint = ep_answer
+
+    llm_changed = any(v is not None for v in (new_provider, new_api_key, new_endpoint))
+
+    if not org_profile and not source_changes and flag_new_items is None and not llm_changed:
         click.echo("\nNo changes. Config unchanged.")
         return
 
@@ -561,6 +614,16 @@ def init(ctx: click.Context) -> None:
                 for extra_key, extra_val in src.extra_config.items():
                     config["sources"][key][extra_key] = extra_val
             config["sources"][key]["enabled"] = enabled
+
+    if llm_changed:
+        if "llm" not in config:
+            config["llm"] = {}
+        if new_provider is not None:
+            config["llm"]["provider"] = new_provider
+        if new_api_key is not None:
+            config["llm"]["api_key"] = new_api_key
+        if new_endpoint is not None:
+            config["llm"]["endpoint"] = new_endpoint
 
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)

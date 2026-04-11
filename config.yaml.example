@@ -1,8 +1,10 @@
 user_agent: "threat-brief/1.0 (contact: your-email@example.com)"
 
 llm:
-  endpoint: "http://localhost:1234/v1"
+  provider: openai_compatible   # openai_compatible (default) or openai
+  endpoint: "http://localhost:1234/v1"   # used when provider is openai_compatible
   model: "local-model"
+  # api_key: ""   # required for provider: openai; or set OPENAI_API_KEY env var
   max_tokens: 4096
   temperature: 0.3
 
