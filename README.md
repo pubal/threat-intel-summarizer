@@ -91,7 +91,7 @@ llm:
 # OpenAI API
 llm:
   provider: openai
-  model: "gpt-4o"
+  model: "gpt-4o-mini"      # must be a valid OpenAI model name
   api_key: "sk-..."         # or set OPENAI_API_KEY env var
   max_tokens: 4096
   temperature: 0.3
@@ -99,7 +99,9 @@ llm:
 
 The `api_key` field can be omitted and the `OPENAI_API_KEY` environment variable used instead to avoid storing credentials in `config.yaml`.
 
-The provider can also be selected interactively via `threat-brief init`.
+> **Note:** When switching from `openai_compatible` to `openai`, make sure to update `model` to a valid OpenAI model name (e.g. `gpt-4o-mini`, `gpt-4o`). The placeholder `local-model` used for local endpoints is not a valid OpenAI model and will cause a 404 error. `threat-brief init` handles this automatically — it prompts for the model name and defaults to `gpt-4o-mini` when switching providers.
+
+The provider, model, API key, and endpoint can all be configured interactively via `threat-brief init`.
 
 ## Organization Profile
 
