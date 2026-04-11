@@ -1,6 +1,6 @@
 # threat-brief
 
-CLI tool that generates daily threat intelligence briefings by aggregating data from multiple sources and summarizing them via a local LLM.
+CLI tool that generates daily threat intelligence briefings by aggregating data from multiple sources and summarizing them via a local LLM (LM Studio, Ollama) or the OpenAI API.
 
 ![Example HTML briefing output](threat_brief.png)
 
@@ -68,7 +68,7 @@ pip install -e .
 cp config.yaml.example config.yaml
 ```
 
-Edit `config.yaml` with your LLM endpoint and model.
+Edit `config.yaml` with your LLM provider, endpoint/model, and API key if using OpenAI. See the [LLM Provider](#llm-provider) section below.
 
 ## LLM Provider
 
@@ -197,7 +197,7 @@ threat-brief --config /path/to/config.yaml
 # List all sources and their enabled/disabled status
 threat-brief --list-sources
 
-# Interactive setup (org profile, source toggle, delta tracking)
+# Interactive setup (org profile, LLM provider, source toggle, delta tracking)
 threat-brief init
 ```
 
