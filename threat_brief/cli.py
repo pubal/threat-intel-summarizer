@@ -579,7 +579,7 @@ def init(ctx: click.Context) -> None:
         if key_answer:
             new_api_key = key_answer
 
-        current_model = existing_llm.get("model", "gpt-4o-mini")
+        current_model = existing_llm.get("model", "gpt-5-mini")
         model_answer = click.prompt(
             f"  Model [{current_model}]",
             default="",
@@ -589,7 +589,7 @@ def init(ctx: click.Context) -> None:
             new_model = model_answer
         elif new_provider == "openai" and current_model == "local-model":
             # Switching to openai with a placeholder model — set a sensible default
-            new_model = "gpt-4o-mini"
+            new_model = "gpt-5-mini"
     else:
         current_ep = existing_llm.get("endpoint", "http://localhost:1234/v1")
         ep_answer = click.prompt(

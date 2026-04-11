@@ -159,21 +159,30 @@ def summarize(
     try:
         if provider == "openai":
             client = openai.OpenAI(api_key=api_key)
+            # Newer OpenAI models (gpt-5+) require max_completion_tokens
+            # and do not support custom temperature (only default of 1)
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_completion_tokens=max_tokens,
+            )
         else:  # openai_compatible (default) — works with LM Studio, Ollama, etc.
             client = openai.OpenAI(
                 base_url=endpoint,
                 api_key=api_key or "not-needed",
             )
-
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
         return response.choices[0].message.content
     except openai.APIConnectionError:
         logger.error(

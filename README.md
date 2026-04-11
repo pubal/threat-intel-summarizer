@@ -77,7 +77,7 @@ Two providers are supported, configured via `llm.provider` in `config.yaml`:
 | Provider | Description |
 |----------|-------------|
 | `openai_compatible` | **Default.** Any local LLM running an OpenAI-compatible API — [LM Studio](https://lmstudio.ai/), Ollama, etc. Set `endpoint` to the server URL (e.g. `http://localhost:1234/v1`). No API key needed. |
-| `openai` | OpenAI's API directly. Set `model` to e.g. `gpt-4o` and supply an API key. |
+| `openai` | OpenAI's API directly. Set `model` to e.g. `gpt-5-mini` and supply an API key. |
 
 ```yaml
 # Local LLM (default)
@@ -91,7 +91,7 @@ llm:
 # OpenAI API
 llm:
   provider: openai
-  model: "gpt-4o-mini"      # must be a valid OpenAI model name
+  model: "gpt-5-mini"       # must be a valid OpenAI model name
   api_key: "sk-..."         # or set OPENAI_API_KEY env var
   max_tokens: 4096
   temperature: 0.3
@@ -99,7 +99,9 @@ llm:
 
 The `api_key` field can be omitted and the `OPENAI_API_KEY` environment variable used instead to avoid storing credentials in `config.yaml`.
 
-> **Note:** When switching from `openai_compatible` to `openai`, make sure to update `model` to a valid OpenAI model name (e.g. `gpt-4o-mini`, `gpt-4o`). The placeholder `local-model` used for local endpoints is not a valid OpenAI model and will cause a 404 error. `threat-brief init` handles this automatically — it prompts for the model name and defaults to `gpt-4o-mini` when switching providers.
+> **Note:** When switching from `openai_compatible` to `openai`, make sure to update `model` to a valid OpenAI model name (e.g. `gpt-5-mini`, `gpt-4o`). The placeholder `local-model` used for local endpoints is not a valid OpenAI model and will cause a 404 error. `threat-brief init` handles this automatically — it prompts for the model name and defaults to `gpt-5-mini` when switching providers.
+>
+> Newer OpenAI models (`gpt-5` and later) require `max_completion_tokens` instead of `max_tokens`. The tool handles this automatically — `max_completion_tokens` is used for the `openai` provider and `max_tokens` for `openai_compatible` local endpoints.
 
 The provider, model, API key, and endpoint can all be configured interactively via `threat-brief init`.
 
