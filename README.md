@@ -91,17 +91,18 @@ llm:
 # OpenAI API
 llm:
   provider: openai
-  model: "gpt-5-mini"       # must be a valid OpenAI model name
-  api_key: "sk-..."         # or set OPENAI_API_KEY env var
-  max_tokens: 4096
-  temperature: 0.3
+  model: "gpt-5-mini"   # must be a valid OpenAI model name
+  api_key: "sk-..."     # or set OPENAI_API_KEY env var
+  max_tokens: 4096      # sent as max_completion_tokens to the API automatically
 ```
 
 The `api_key` field can be omitted and the `OPENAI_API_KEY` environment variable used instead to avoid storing credentials in `config.yaml`.
 
-> **Note:** When switching from `openai_compatible` to `openai`, make sure to update `model` to a valid OpenAI model name (e.g. `gpt-5-mini`, `gpt-4o`). The placeholder `local-model` used for local endpoints is not a valid OpenAI model and will cause a 404 error. `threat-brief init` handles this automatically — it prompts for the model name and defaults to `gpt-5-mini` when switching providers.
->
-> Newer OpenAI models (`gpt-5` and later) require `max_completion_tokens` instead of `max_tokens`. The tool handles this automatically — `max_completion_tokens` is used for the `openai` provider and `max_tokens` for `openai_compatible` local endpoints.
+**Compatibility notes for `provider: openai`:**
+
+- **Model name** — must be a valid OpenAI model (e.g. `gpt-5-mini`, `gpt-4o`). The local placeholder `local-model` will cause a 404. `threat-brief init` prompts for the model and defaults to `gpt-5-mini` when switching providers.
+- **`max_tokens`** — newer OpenAI models (`gpt-5` and later) require `max_completion_tokens` instead of `max_tokens`. The tool translates this automatically; configure `max_tokens` in `config.yaml` as normal.
+- **`temperature`** — newer OpenAI models only support the default temperature and ignore custom values. The `temperature` field is omitted from the API call when using `provider: openai`.
 
 The provider, model, API key, and endpoint can all be configured interactively via `threat-brief init`.
 
