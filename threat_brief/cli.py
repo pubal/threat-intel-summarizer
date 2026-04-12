@@ -21,6 +21,7 @@ from threat_brief.delta import (
 )
 from threat_brief.html_template import HTML_TEMPLATE
 from threat_brief.models import ThreatEntry
+from threat_brief.notifications.slack import send_slack_notification
 from threat_brief.sources import fetch_infocon
 from threat_brief.sources.registry import SOURCE_REGISTRY, get_registry_by_key
 from threat_brief.summarizer import summarize
@@ -251,8 +252,15 @@ def _build_profile_footer(org_profile: dict) -> str:
     default=False,
     help="Disable [NEW] badges for this run, regardless of config",
 )
+@click.option(
+    "--no-notify",
+    "no_notify_flag",
+    is_flag=True,
+    default=False,
+    help="Skip Slack notifications for this run",
+)
 @click.pass_context
-def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str, list_sources: bool, diff_flag: bool, no_diff_flag: bool) -> None:
+def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool, verbose: bool, output_format: str, list_sources: bool, diff_flag: bool, no_diff_flag: bool, no_notify_flag: bool) -> None:
     """threat-brief — Daily threat intelligence briefing generator."""
     # If a subcommand was invoked, store config_path for it and return
     ctx.ensure_object(dict)
@@ -420,6 +428,17 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
 
     # Always save manifest so future runs have an accurate baseline
     save_manifest(entries, reports_dir)
+
+    # Slack notification
+    if not no_notify_flag and not dry_run:
+        send_slack_notification(
+            config=config,
+            entries=entries,
+            new_fingerprints=new_fingerprints if track_new else None,
+            filepath=filepath,
+            lookback=lookback,
+            infocon_level=infocon_level,
+        )
 
     # Auto-open HTML in browser
     if output_format == "html":
@@ -629,7 +648,48 @@ def init(ctx: click.Context) -> None:
 
     llm_changed = any(v is not None for v in (new_provider, new_api_key, new_endpoint, new_model))
 
-    if not org_profile and not source_changes and flag_new_items is None and not llm_changed and github_min_severity is None:
+    # Slack notifications
+    existing_notifications = config.get("notifications", {})
+    existing_slack = existing_notifications.get("slack", {})
+    currently_slack_enabled = existing_slack.get("enabled", False)
+    slack_enabled: bool | None = None
+    slack_webhook_url: str | None = None
+    slack_threshold: str | None = None
+
+    slack_answer = click.prompt(
+        "\nEnable Slack notifications for critical items? (y/N)",
+        default="", show_default=False,
+    ).strip().lower()
+    if slack_answer in ("y", "yes"):
+        slack_enabled = True
+        current_url = existing_slack.get("webhook_url", "")
+        masked_url = current_url[:30] + "..." if len(current_url) > 30 else current_url
+        url_prompt = f"  Slack incoming webhook URL [{masked_url or 'none'}]"
+        url_answer = click.prompt(url_prompt, default="", show_default=False).strip()
+        if url_answer:
+            slack_webhook_url = url_answer
+        sev_answer = click.prompt(
+            "  Notify on which severity? [critical/high/medium]",
+            default="", show_default=False,
+        ).strip().lower()
+        if sev_answer in ("critical", "high", "medium"):
+            slack_threshold = sev_answer
+        click.echo("  Tip: test your webhook with:")
+        click.echo("    curl -X POST -H 'Content-Type: application/json' "
+                   "--data '{\"text\":\"test\"}' <YOUR_URL>")
+    elif slack_answer in ("n", "no"):
+        if currently_slack_enabled:
+            slack_enabled = False
+
+    if (
+        not org_profile
+        and not source_changes
+        and flag_new_items is None
+        and not llm_changed
+        and github_min_severity is None
+        and slack_enabled is None
+        and slack_webhook_url is None
+    ):
         click.echo("\nNo changes. Config unchanged.")
         return
 
@@ -672,6 +732,15 @@ def init(ctx: click.Context) -> None:
             config["llm"]["api_key"] = new_api_key
         if new_endpoint is not None:
             config["llm"]["endpoint"] = new_endpoint
+
+    if slack_enabled is not None or slack_webhook_url is not None or slack_threshold is not None:
+        config.setdefault("notifications", {}).setdefault("slack", {})
+        if slack_enabled is not None:
+            config["notifications"]["slack"]["enabled"] = slack_enabled
+        if slack_webhook_url is not None:
+            config["notifications"]["slack"]["webhook_url"] = slack_webhook_url
+        if slack_threshold is not None:
+            config["notifications"]["slack"]["severity_threshold"] = slack_threshold
 
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)

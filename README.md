@@ -238,6 +238,59 @@ The HTML report includes a sticky header with generation metadata and a color-co
 
 If the LLM endpoint is unavailable, a fallback report with categorized raw items is generated instead.
 
+## Notifications
+
+After each run, threat-brief can push a formatted [Block Kit](https://api.slack.com/block-kit) notification to a Slack channel summarising Critical (and optionally High/Medium) items.
+
+### Slack setup
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
+2. Under **Features**, select **Incoming Webhooks** and toggle it on
+3. Click **Add New Webhook to Workspace**, select the target channel, and click **Allow**
+4. Copy the webhook URL (starts with `https://hooks.slack.com/services/…`)
+
+### Configuration
+
+```yaml
+notifications:
+  slack:
+    enabled: true
+    webhook_url: "https://hooks.slack.com/services/T.../B.../..."  # or set SLACK_WEBHOOK_URL env var
+    severity_threshold: "critical"   # critical | high | medium
+    include_link_to_report: true
+    report_base_url: ""              # e.g. http://localhost:8080 — omit for file:// local path
+```
+
+The `webhook_url` can be omitted from `config.yaml` and provided via the `SLACK_WEBHOOK_URL` environment variable instead. This is the recommended approach to avoid storing credentials in the config file.
+
+Run `threat-brief init` to configure Slack interactively.
+
+### Severity threshold
+
+| `severity_threshold` | Items included |
+|----------------------|----------------|
+| `critical` (default) | Critical only |
+| `high` | Critical + High |
+| `medium` | Critical + High + Medium |
+
+If no items meet the threshold, no message is sent.
+
+### CLI flag
+
+```bash
+threat-brief --no-notify   # skip Slack notification for this run
+```
+
+### Report link
+
+When `include_link_to_report: true` (the default), a **View Full Report** button is added to the notification. If `report_base_url` is set, the URL is constructed as `<report_base_url>/reports/<filename>`. Otherwise a `file://` path to the local file is used.
+
+> **Note:** Browsers block navigation from Slack to `file://` URLs for security reasons. The `file://` link is useful for local testing — for team-shared notifications set `report_base_url` to a web-accessible base URL.
+
+### Failure handling
+
+Notification failures never block report generation. The tool retries up to 3 times (delays: 1s, 2s, 4s) then logs an error and continues. Future providers (e.g. Microsoft Teams) may be added as additional keys under `notifications:`.
+
 ## Scheduled Runs (macOS)
 
 > **Note:** macOS protects `~/Documents/`, `~/Desktop/`, and `~/Downloads/` with TCC (Transparency, Consent, and Control). Launchd agents cannot access files in these folders without Full Disk Access. If your project lives under a protected folder, create a **separate venv** and place **log files** outside of it to avoid `PermissionError` at runtime.
@@ -297,6 +350,8 @@ A macOS notification banner will appear when each run completes, showing the ite
 │   ├── delta.py                 # Delta tracking — fingerprints and manifest
 │   ├── html_template.py         # Dark-themed HTML report template
 │   ├── summarizer.py            # LLM integration
+│   ├── notifications/
+│   │   └── slack.py             # Slack Block Kit webhook notifications
 │   └── sources/
 │       ├── registry.py          # Source registry — add new sources here
 │       ├── apple_security.py

@@ -72,3 +72,12 @@ settings:
   # Tag items not seen in the previous run with a [NEW] badge.
   # Use --diff / --no-diff at the CLI to override for a single run.
   flag_new_items: true
+
+# Optional — Slack notifications after each run
+# notifications:
+#   slack:
+#     enabled: false
+#     webhook_url: ""         # or set SLACK_WEBHOOK_URL env var
+#     severity_threshold: "critical"  # critical | high | medium
+#     include_link_to_report: true
+#     report_base_url: ""    # e.g. http://localhost:8080 — omit for file:// local path
