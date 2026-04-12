@@ -99,18 +99,19 @@ def _fetch_all_pages(
     cutoff: datetime,
     ecosystem: str | None,
 ) -> list[dict]:
-    """Fetch pages of reviewed advisories for a given ecosystem (or all).
+    """Fetch pages of newly published reviewed advisories for a given ecosystem (or all).
 
-    Uses the 'updated' filter param (>ISO format) to limit results to the
-    time window, then paginates until no more results are returned.
+    Uses the 'published' filter param (>ISO format) to return only advisories
+    first published within the time window — not re-reviews of older entries.
+    Paginates until the API returns an empty page.
     """
     results: list[dict] = []
     params: dict = {
         "type": "reviewed",
         "per_page": 100,
-        "sort": "updated",
+        "sort": "published",
         "direction": "desc",
-        "updated": f">{cutoff.strftime('%Y-%m-%dT%H:%M:%SZ')}",
+        "published": f">{cutoff.strftime('%Y-%m-%dT%H:%M:%SZ')}",
     }
     if ecosystem:
         params["ecosystem"] = ecosystem
@@ -142,31 +143,7 @@ def _fetch_all_pages(
         if not data:
             break
 
-        # Collect items within window; stop when the whole page is older than cutoff
-        page_has_recent = False
-        for adv in data:
-            updated_at = adv.get("updated_at", "")
-            if updated_at:
-                try:
-                    dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                    if dt >= cutoff:
-                        results.append(adv)
-                        page_has_recent = True
-                    # Items older than cutoff: still check rest of page but don't add
-                except ValueError:
-                    results.append(adv)  # Keep if we can't parse the date
-            else:
-                results.append(adv)
-
-        # If the oldest item on this page is still newer than cutoff, keep paginating
-        oldest = data[-1].get("updated_at", "")
-        if oldest:
-            try:
-                oldest_dt = datetime.fromisoformat(oldest.replace("Z", "+00:00"))
-                if oldest_dt < cutoff:
-                    break  # All remaining pages will be older — stop
-            except ValueError:
-                pass
+        results.extend(data)
 
         if len(data) < 100:
             break  # Last page
@@ -317,12 +294,12 @@ def fetch_github_advisories(url: str, cutoff: datetime, config: dict) -> list[Th
     # All CVE IDs (not GHSA-only IDs) for the fingerprint and delta tracking
     cve_ids = sorted({a.get("cve_id") for a in advisories if a.get("cve_id")})
 
-    # Most recent updated_at across all advisories
+    # Most recent published_at across all advisories
     most_recent = max(
         (
-            datetime.fromisoformat(a["updated_at"].replace("Z", "+00:00"))
+            datetime.fromisoformat(a["published_at"].replace("Z", "+00:00"))
             for a in advisories
-            if a.get("updated_at")
+            if a.get("published_at")
         ),
         default=datetime.now(timezone.utc),
     )
