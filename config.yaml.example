@@ -40,6 +40,11 @@ sources:
   mandiant:
     enabled: true
     url: "https://feeds.feedburner.com/threatintelligence/pvexyqv7v0v"
+  github_advisories:
+    enabled: true
+    url: "https://api.github.com/advisories"
+    min_severity: "medium"   # Skip low-severity advisories. Options: critical, high, medium, low
+    github_token: ""         # Optional — set for 5,000 req/hour vs 60. Also reads GITHUB_TOKEN env var
 
 # Optional — run `threat-brief init` to configure interactively
 # org_profile:

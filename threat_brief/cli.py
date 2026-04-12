@@ -59,11 +59,16 @@ def _get_enabled_sources(config: dict) -> list[str]:
     return names
 
 
-def _fetch_all(config: dict, cutoff: datetime) -> list[ThreatEntry]:
+def _fetch_all(
+    config: dict, cutoff: datetime, manifest: dict | None = None
+) -> list[ThreatEntry]:
     """Fetch from all enabled sources, tolerating individual failures."""
     sources_cfg = config.get("sources", {})
     user_agent = config.get("user_agent", "")
     all_entries: list[ThreatEntry] = []
+
+    # Inject manifest so full-config sources can do inline [NEW] tagging
+    full_config = {**config, "_manifest": manifest} if manifest else config
 
     for src in SOURCE_REGISTRY:
         cfg = sources_cfg.get(src.key, {})
@@ -82,6 +87,8 @@ def _fetch_all(config: dict, cutoff: datetime) -> list[ThreatEntry]:
                 entries = src.fetch_fn(url, cutoff, user_agent)
             elif src.needs_source_cfg:
                 entries = src.fetch_fn(url, cutoff, cfg)
+            elif src.needs_full_config:
+                entries = src.fetch_fn(url, cutoff, full_config)
             else:
                 entries = src.fetch_fn(url, cutoff)
             all_entries.extend(entries)
@@ -296,10 +303,13 @@ def main(ctx: click.Context, config_path: str, hours: int | None, dry_run: bool,
     click.echo("Fetching sources...")
 
     reports_dir = config.get("reports_dir", "./reports")
-    entries = _fetch_all(config, cutoff)
 
-    # Delta tracking — load previous manifest, compute new fingerprints
+    # Load manifest before fetching so full-config sources (e.g. GitHub Advisories)
+    # can annotate inline [NEW] CVEs in their descriptions
     manifest = load_manifest(reports_dir)
+    entries = _fetch_all(config, cutoff, manifest)
+
+    # Delta tracking — compute new fingerprints
     new_fingerprints = get_new_fingerprints(entries, manifest) if track_new else set()
     new_count = len(new_fingerprints)
 
@@ -520,6 +530,23 @@ def init(ctx: click.Context) -> None:
             source_changes[src.key] = False
         # else keep current
 
+    # GitHub Advisories — min_severity follow-up (shown only when source is enabled)
+    github_cfg = existing_sources.get("github_advisories", {})
+    github_enabled_now = source_changes.get(
+        "github_advisories", _is_source_enabled(github_cfg)
+    )
+    github_min_severity: str | None = None
+    if github_enabled_now:
+        current_min_sev = github_cfg.get("min_severity", "medium")
+        click.echo("\nGitHub Advisories severity filter:")
+        sev_answer = click.prompt(
+            f"  Minimum severity [critical/high/medium/low] [{current_min_sev}]",
+            default="",
+            show_default=False,
+        ).strip().lower()
+        if sev_answer in ("critical", "high", "medium", "low"):
+            github_min_severity = sev_answer
+
     # Delta tracking setting
     existing_settings = config.get("settings", {})
     current_flag = existing_settings.get("flag_new_items", True)
@@ -602,7 +629,7 @@ def init(ctx: click.Context) -> None:
 
     llm_changed = any(v is not None for v in (new_provider, new_api_key, new_endpoint, new_model))
 
-    if not org_profile and not source_changes and flag_new_items is None and not llm_changed:
+    if not org_profile and not source_changes and flag_new_items is None and not llm_changed and github_min_severity is None:
         click.echo("\nNo changes. Config unchanged.")
         return
 
@@ -615,7 +642,7 @@ def init(ctx: click.Context) -> None:
             config["settings"] = {}
         config["settings"]["flag_new_items"] = flag_new_items
 
-    if source_changes:
+    if source_changes or github_min_severity is not None:
         if "sources" not in config:
             config["sources"] = {}
         for key, enabled in source_changes.items():
@@ -627,6 +654,12 @@ def init(ctx: click.Context) -> None:
                 for extra_key, extra_val in src.extra_config.items():
                     config["sources"][key][extra_key] = extra_val
             config["sources"][key]["enabled"] = enabled
+        if github_min_severity is not None:
+            if "github_advisories" not in config["sources"]:
+                config["sources"]["github_advisories"] = {
+                    "url": "https://api.github.com/advisories"
+                }
+            config["sources"]["github_advisories"]["min_severity"] = github_min_severity
 
     if llm_changed:
         if "llm" not in config:

@@ -6,6 +6,7 @@ from typing import Callable
 
 from .apple_security import fetch_apple_security
 from .aws_bulletins import fetch_aws_bulletins
+from .github_advisories import fetch_github_advisories
 from .mandiant import fetch_mandiant
 from .cisa_all import fetch_cisa_advisories
 from .cisa_kev import fetch_cisa_kev
@@ -27,6 +28,7 @@ class SourceInfo:
     extra_config: dict[str, str] = field(default_factory=dict)
     needs_user_agent: bool = False
     needs_source_cfg: bool = False
+    needs_full_config: bool = False  # Pass the full config dict (includes org_profile)
 
 
 SOURCE_REGISTRY: list[SourceInfo] = [
@@ -95,6 +97,14 @@ SOURCE_REGISTRY: list[SourceInfo] = [
         default_url="https://isc.sans.edu/rssfeed_full.xml",
         extra_config={"infocon_url": "https://isc.sans.edu/infocon.txt"},
         needs_user_agent=True,
+    ),
+    SourceInfo(
+        key="github_advisories",
+        name="GitHub Advisories",
+        description="GitHub Advisory Database — supply chain vulnerabilities for npm, pip, NuGet, Maven, Go, and more, filtered by your tech stack and aggregated into a single summary",
+        fetch_fn=fetch_github_advisories,
+        default_url="https://api.github.com/advisories",
+        needs_full_config=True,
     ),
 ]
 

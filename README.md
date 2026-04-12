@@ -19,6 +19,7 @@ All sources can be individually enabled or disabled in `config.yaml`. Missing `e
 | **Krebs on Security** | Investigative cybersecurity journalism | RSS feed |
 | **Mandiant** | Google/Mandiant threat intelligence research — APT campaigns, threat actors, malware analysis, exploitation trends | RSS feed |
 | **SANS ISC** | Internet Storm Center diary + InfoCon threat level | RSS + API |
+| **GitHub Advisories** | GitHub Advisory Database — supply chain vulnerabilities for npm, pip, NuGet, Maven, Go, and more, filtered by org tech stack and aggregated into a single summary item | REST API |
 
 The Apple Security source has two extra config options:
 
@@ -33,6 +34,22 @@ sources:
 
 - **`fetch_details: true`** — fetches each release's detail page to extract CVE IDs, component names (WebKit, Kernel, etc.), impact descriptions, and the actively-exploited flag. When a release is flagged as actively exploited, severity is set to `Critical` and the description is prefixed with `ACTIVELY EXPLOITED:`. Set to `false` for faster runs with less data.
 - **`group_by_date: true`** — on Apple patch days, iOS, macOS, watchOS, tvOS, and Safari often drop simultaneously. This consolidates them into a single briefing item (e.g. "Apple Security Updates — 2026-03-17") with a merged CVE list, preventing Apple from flooding the report with 6–8 separate entries.
+
+The GitHub Advisories source has two extra config options:
+
+```yaml
+sources:
+  github_advisories:
+    enabled: true
+    url: "https://api.github.com/advisories"
+    min_severity: "medium"   # Skip low-severity advisories. Options: critical, high, medium, low
+    github_token: ""         # Optional — set for 5,000 req/hour vs 60 unauthenticated
+```
+
+- **`min_severity`** — filters advisories by severity. Defaults to `medium` (includes medium, high, critical). Set to `high` to skip medium advisories, or `critical` for only the most severe. Configurable via `threat-brief init`.
+- **`github_token`** — optional GitHub personal access token for higher rate limits. The unauthenticated rate limit (60 req/hour) is sufficient for daily runs with a few ecosystems. For broader queries or frequent runs, provide a token or set the `GITHUB_TOKEN` environment variable.
+
+All advisories from this source are **aggregated into a single briefing item** to avoid flooding the report. The item's description lists critical and high advisories individually (package, ecosystem, CVE, one-line summary) and rolls up medium advisories into a count by ecosystem. Advisories that directly match packages named in `tech_stack.applications` or `tech_stack.infrastructure` are flagged with `DIRECT MATCH:`. Ecosystem filtering is automatic based on `tech_stack.languages_and_frameworks` — Python maps to `pip`, JavaScript/TypeScript to `npm`, .NET to `nuget`, etc. If no languages are configured, all ecosystems are fetched.
 
 ```yaml
 # config.yaml — toggle individual sources
