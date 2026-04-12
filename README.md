@@ -242,6 +242,8 @@ If the LLM endpoint is unavailable, a fallback report with categorized raw items
 
 After each run, threat-brief can push a formatted [Block Kit](https://api.slack.com/block-kit) notification to a Slack channel summarising Critical (and optionally High/Medium) items.
 
+![Example Slack notification](slack.png)
+
 ### Slack setup
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
