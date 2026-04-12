@@ -47,7 +47,7 @@ sources:
 ```
 
 - **`min_severity`** — filters advisories by severity. Defaults to `medium` (includes medium, high, critical). Set to `high` to skip medium advisories, or `critical` for only the most severe. Configurable via `threat-brief init`.
-- **`github_token`** — optional GitHub personal access token for higher rate limits. The unauthenticated rate limit (60 req/hour) is sufficient for daily runs with a few ecosystems. For broader queries or frequent runs, provide a token or set the `GITHUB_TOKEN` environment variable.
+- **`github_token`** — optional GitHub personal access token for higher rate limits. The unauthenticated limit (60 req/hour) is sufficient for typical daily runs — the source fetches only **newly published** advisories in the lookback window, not re-reviews of existing ones. For very broad queries across all ecosystems or runs shorter than hourly, provide a token or set the `GITHUB_TOKEN` environment variable.
 
 All advisories from this source are **aggregated into a single briefing item** to avoid flooding the report. The item's description lists critical and high advisories individually (package, ecosystem, CVE, one-line summary) and rolls up medium advisories into a count by ecosystem. Advisories that directly match packages named in `tech_stack.applications` or `tech_stack.infrastructure` are flagged with `DIRECT MATCH:`. Ecosystem filtering is automatic based on `tech_stack.languages_and_frameworks` — Python maps to `pip`, JavaScript/TypeScript to `npm`, .NET to `nuget`, etc. If no languages are configured, all ecosystems are fetched.
 
