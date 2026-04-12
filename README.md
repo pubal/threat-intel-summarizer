@@ -307,7 +307,8 @@ A macOS notification banner will appear when each run completes, showing the ite
 │       ├── hackernews.py
 │       ├── krebs.py
 │       ├── mandiant.py
-│       └── isc.py
+│       ├── isc.py
+│       └── github_advisories.py
 └── reports/                     # Generated briefings (gitignored)
 ```
 
