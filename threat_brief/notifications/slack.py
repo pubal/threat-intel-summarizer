@@ -99,9 +99,9 @@ def send_slack_notification(
     if overflow > 0:
         overflow_block = [{"type": "section", "text": {"type": "mrkdwn", "text": f"_...and {overflow} more_"}}]
 
-    # Actions block
+    # Actions block — button url must be http/https; file:// URIs are rejected by Slack
     actions_block = []
-    if include_link:
+    if include_link and report_url.startswith(("http://", "https://")):
         actions_block = [{
             "type": "actions",
             "elements": [{
