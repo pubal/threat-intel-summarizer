@@ -193,7 +193,42 @@ def summarize(
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        finish_reason = response.choices[0].finish_reason
+        usage = response.usage
+
+        # Reasoning models (gpt-5, o-series) spend tokens on internal reasoning before
+        # producing output. If max_completion_tokens is too low the budget is exhausted
+        # during reasoning, leaving content empty with finish_reason="length".
+        if not content:
+            if finish_reason == "length":
+                reasoning = (
+                    getattr(usage.completion_tokens_details, "reasoning_tokens", 0)
+                    if usage else 0
+                )
+                if reasoning:
+                    logger.error(
+                        "LLM returned empty content: all %d completion tokens consumed by "
+                        "reasoning (prompt=%d tokens). Increase max_tokens in config.yaml "
+                        "(current: %d → try 16000+). Falling back to structured report.",
+                        reasoning,
+                        usage.prompt_tokens if usage else 0,
+                        max_tokens,
+                    )
+                else:
+                    logger.error(
+                        "LLM returned empty content (finish_reason=length, max_tokens=%d). "
+                        "Try increasing max_tokens. Falling back to structured report.",
+                        max_tokens,
+                    )
+            else:
+                logger.error(
+                    "LLM returned empty content (finish_reason=%s). Falling back to structured report.",
+                    finish_reason,
+                )
+            return _fallback_report(entries, new_fps)
+
+        return content
     except openai.APIConnectionError:
         logger.error(
             "Cannot connect to LLM endpoint at %s. Is LM Studio running?", endpoint
